@@ -1,0 +1,480 @@
+/* =====================================================
+   THEME VARIABLES (PREMIUM TUNED)
+===================================================== */
+:root {
+  /* Backgrounds */
+  --bg-main: #f4f6fb;
+  --bg-card: #ffffff;
+  --bg-soft: #f8fafc;
+
+  /* Text */
+  --text-main: #0b1220;
+  --text-muted: #6b7280;
+
+  /* Brand */
+  --primary: #2563eb;
+  --success: #22c55e;
+  --warning: #d97706;
+
+  /* Borders */
+  --border-soft: #e6e9f0;
+
+  /* Radius */
+  --radius-xl: 18px;
+  --radius-lg: 14px;
+  --radius-md: 10px;
+
+  /* Shadows */
+  --shadow-soft:
+    0 10px 22px rgba(15, 23, 42, 0.06),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+
+  --shadow-light:
+    0 4px 10px rgba(15, 23, 42, 0.05);
+}
+
+/* =====================================================
+   RESET
+===================================================== */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(180deg, var(--bg-main) 0%, #eef2f7 100%);
+  color: var(--text-main);
+}
+
+/* =====================================================
+   CONTAINER
+===================================================== */
+.booking-details-container {
+  max-width: 1550px;
+  margin: 22px auto;
+  padding: 0 20px;
+}
+
+/* =====================================================
+   TOP BAR
+===================================================== */
+.saas-topbar {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 16px 22px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.back-icon {
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+}
+
+.topbar-left h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.stage-pill {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+button {
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s;
+}
+
+button:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-light);
+}
+
+.print-button {
+  background: #ffffff;
+  border: 1px solid var(--border-soft);
+}
+
+.whatsapp-btn {
+  background: var(--success);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* =====================================================
+   LAYOUT
+===================================================== */
+.saas-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+}
+
+/* =====================================================
+   ACTIVITY LOG (PREMIUM AUDIT TIMELINE)
+===================================================== */
+.activity-log-container {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 22px;
+  box-shadow: var(--shadow-soft);
+  position: sticky;
+  top: 110px;
+  border-left: 4px solid #eef2ff;
+}
+
+.activity-log-container h3 {
+  margin: 0 0 16px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.timeline-item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  transition: background 0.2s ease;
+}
+
+.timeline-item:hover {
+  background: var(--bg-soft);
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin-top: 6px;
+  box-shadow: 0 0 0 4px #eef2ff;
+}
+
+.timeline-item p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.timeline-item small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* =====================================================
+   MAIN CONTENT
+===================================================== */
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* =====================================================
+   CARD (PREMIUM FRAMING)
+===================================================== */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 22px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.08),
+    0 4px 10px rgba(15, 23, 42, 0.06);
+}
+
+.card + .card {
+  margin-top: 6px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* subtle divider */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: auto 22px 0 22px;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--border-soft),
+    transparent
+  );
+}
+
+/* =====================================================
+   INFO ROWS (HIERARCHY POLISHED)
+===================================================== */
+.info-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.info-row p {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.info-row strong {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.info-row span {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* =====================================================
+   LABELS & INPUTS
+===================================================== */
+label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  font-size: 14px;
+  background: #ffffff;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* =====================================================
+   FORM ACTIONS
+===================================================== */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* =====================================================
+   PAYMENT SECTION (EXECUTIVE POLISH)
+===================================================== */
+.payment-info {
+  background: linear-gradient(180deg, #ffffff 0%, var(--bg-soft) 100%);
+}
+
+.payment-info .info-row:not(:last-child) {
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--border-soft);
+}
+
+/* =====================================================
+   PRODUCT CARDS (PREMIUM COMMERCE)
+===================================================== */
+.product-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.product-card {
+  background: var(--bg-soft);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-light);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 30px rgba(15, 23, 42, 0.1),
+    0 4px 10px rgba(15, 23, 42, 0.06);
+}
+
+.product-card img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+}
+
+.product-card h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.product-card p {
+  margin: 3px 0;
+  font-size: 13px;
+}
+
+.product-meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.product-dates {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+/* =====================================================
+   MODAL
+===================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+}
+
+.modal-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-card);
+  padding: 24px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft);
+  z-index: 101;
+}
+
+/* =====================================================
+   PRINT MODE
+===================================================== */
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  .saas-topbar,
+  .activity-log-container,
+  button {
+    display: none !important;
+  }
+
+  .saas-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+}
+.print-button {
+  background: #f3f4f6;
+  color: #111827;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.print-button:hover {
+  background: #e5e7eb;
+}
+/* =================================
+   GLOBAL BUTTON VISIBILITY FIX
+================================= */
+button {
+  background: #f3f4f6;
+  color: #111827;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Hover feedback */
+button:hover {
+  background: #e5e7eb;
+}
+
+/* Optional focus ring */
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}

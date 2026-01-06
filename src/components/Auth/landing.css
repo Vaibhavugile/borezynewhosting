@@ -1,0 +1,587 @@
+/* ===================================================== */
+/* =============== DESIGN SYSTEM ======================= */
+/* ===================================================== */
+
+:root {
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --soft: #eef2f7;
+
+  --text: #0b1020;
+  --muted: #667085;
+
+  --primary: #7f59a9;
+  --primary-dark: #5b3b86;
+  --accent: #22c55e;
+
+  --radius-xl: 32px;
+  --radius-lg: 22px;
+  --radius-md: 14px;
+
+  --shadow-soft: 0 20px 60px rgba(15, 23, 42, 0.06);
+  --shadow-glow: 0 80px 200px rgba(127, 89, 169, 0.35);
+
+  --transition: 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ===================================================== */
+/* =============== GLOBAL ============================== */
+/* ===================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(127, 89, 169, 0.14), transparent),
+    radial-gradient(1000px 500px at 90% 0%, rgba(34, 197, 94, 0.1), transparent),
+    var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* ===================================================== */
+/* =============== GLASS =============================== */
+/* ===================================================== */
+
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+/* ===================================================== */
+/* =============== NAV ================================ */
+/* ===================================================== */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  padding: 20px 72px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.logo-tagline {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.nav nav {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+}
+
+.nav a {
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.nav a:hover {
+  color: var(--text);
+}
+
+.nav-trust {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ===================================================== */
+/* =============== BUTTONS ============================= */
+/* ===================================================== */
+
+button {
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  border-radius: 999px;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.btn-primary {
+  padding: 14px 30px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 120px 260px rgba(127, 89, 169, 0.45);
+}
+
+.btn-ghost {
+  padding: 14px 30px;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.full {
+  width: 100%;
+}
+
+/* ===================================================== */
+/* =============== HERO ================================ */
+/* ===================================================== */
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 120px;
+  padding: 170px 90px 140px;
+  position: relative;
+  overflow: hidden;
+}
+
+.parallax-bg {
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(127, 89, 169, 0.25), transparent 45%),
+    radial-gradient(circle at 70% 70%, rgba(34, 197, 94, 0.18), transparent 50%);
+  z-index: 0;
+}
+
+.glow-orb {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  background: rgba(127, 89, 169, 0.35);
+  filter: blur(180px);
+  top: 12%;
+  right: 6%;
+  z-index: 0;
+}
+
+.hero-left,
+.hero-right {
+  position: relative;
+  z-index: 2;
+}
+
+/* ===================================================== */
+/* =============== HERO CONTENT ======================== */
+/* ===================================================== */
+
+.badge {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(127, 89, 169, 0.14);
+}
+
+.hero h1 {
+  font-size: clamp(48px, 6.5vw, 72px);
+  line-height: 1.02;
+  margin: 26px 0;
+}
+
+.hero h1 span {
+  color: var(--primary);
+}
+
+.hero p {
+  font-size: 18px;
+  color: var(--muted);
+  max-width: 540px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 24px;
+  margin-top: 44px;
+}
+
+.hero-proof {
+  margin-top: 26px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ===================================================== */
+/* =============== TRUST =============================== */
+/* ===================================================== */
+
+.trust {
+  padding: 60px 90px;
+  text-align: center;
+}
+
+.trust-text {
+  font-size: 14px;
+  margin-bottom: 20px;
+  color: var(--muted);
+}
+
+.trust-logos {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+/* ===================================================== */
+/* =============== METRICS ============================= */
+/* ===================================================== */
+
+.metrics {
+  padding: 120px 90px;
+}
+
+.metrics-subtitle {
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 50px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 36px;
+}
+
+.metric-card {
+  padding: 42px 36px;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(127, 89, 169, 0.18), transparent 60%);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.metric-card:hover::after {
+  opacity: 1;
+}
+
+.metric-card h2 {
+  font-size: 42px;
+  color: var(--primary);
+}
+
+.metric-card p {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.metric-card small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ===================================================== */
+/* =============== WORKFLOW ============================ */
+/* ===================================================== */
+
+.workflow {
+  padding: 160px 90px;
+  text-align: center;
+}
+
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 48px;
+  margin-top: 90px;
+  position: relative;
+}
+
+.workflow-grid::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(127,89,169,.35), transparent);
+}
+
+.workflow-card {
+  padding: 46px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.65));
+}
+
+.workflow-card span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ===================================================== */
+/* =============== DEEP FEATURE ======================== */
+/* ===================================================== */
+
+.deep-feature {
+  padding: 160px 90px;
+}
+
+.deep-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 110px;
+  align-items: center;
+}
+
+.deep-feature ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.deep-feature li {
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.proof-strip {
+  display: flex;
+  gap: 32px;
+  margin-top: 30px;
+}
+
+.proof-strip strong {
+  display: block;
+  font-size: 22px;
+  color: var(--primary);
+}
+
+.proof-strip span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ===================================================== */
+/* =============== STORY =============================== */
+/* ===================================================== */
+
+.story {
+  padding: 160px 90px;
+  text-align: center;
+}
+
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 60px;
+  margin-top: 100px;
+}
+
+.story-card {
+  padding: 54px 40px;
+}
+
+.feature-footer {
+  margin-top: 80px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+/* ===================================================== */
+/* =============== SECURITY ============================ */
+/* ===================================================== */
+
+.security {
+  padding: 160px 90px;
+  text-align: center;
+}
+
+.security-subtitle {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 34px;
+  margin-top: 70px;
+}
+
+.security-card {
+  padding: 40px;
+  text-align: left;
+}
+
+.security-card h4 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.security-card p {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ===================================================== */
+/* =============== PRICING ============================= */
+/* ===================================================== */
+
+.pricing {
+  padding: 180px 90px;
+  text-align: center;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 44px;
+  margin-top: 90px;
+}
+
+.pricing-card {
+  padding: 70px 56px;
+  background: var(--panel);
+  border-radius: var(--radius-xl);
+}
+
+.pricing-card.popular {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-glow);
+}
+
+.popular-tag {
+  background: var(--primary);
+  color: white;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.pricing-note {
+  margin-top: 44px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ===================================================== */
+/* =============== CONTACT ============================= */
+/* ===================================================== */
+
+.contact {
+  padding: 180px 90px;
+}
+
+.contact-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(127, 89, 169, 0.15);
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 90px;
+}
+
+input {
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+/* ===================================================== */
+/* =============== FINAL CTA =========================== */
+/* ===================================================== */
+
+.final-cta {
+  padding: 200px 90px;
+  text-align: center;
+  background: radial-gradient(circle, rgba(127, 89, 169, 0.25), transparent 60%);
+}
+
+/* ===================================================== */
+/* =============== FOOTER ============================== */
+/* ===================================================== */
+
+.footer {
+  padding: 72px;
+  background: #0b1020;
+  color: #cbd5f5;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* ===================================================== */
+/* =============== STICKY CTA ========================== */
+/* ===================================================== */
+
+.sticky-cta {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 22px;
+  padding: 18px 30px;
+  z-index: 100;
+}
+
+/* ===================================================== */
+/* =============== RESPONSIVE ========================== */
+/* ===================================================== */
+
+@media (max-width: 1100px) {
+  .hero,
+  .deep-grid,
+  .story-grid,
+  .pricing-grid,
+  .workflow-grid,
+  .metrics-grid,
+  .security-grid,
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero,
+  .story,
+  .pricing,
+  .workflow,
+  .security,
+  .contact,
+  .deep-feature {
+    padding: 110px 40px;
+  }
+
+  .pricing-card.popular {
+    transform: none;
+  }
+}

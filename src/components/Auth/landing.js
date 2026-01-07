@@ -1,479 +1,368 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import Lottie from "lottie-react";
-import { FaArrowRight, FaCheck } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 import "./landing.css";
+import boy from "../../assets/boy.png"
+import logo from "../../assets/Bore.jpg"
+import emailjs from "emailjs-com";
+import { FaAngleUp, FaAngleDown } from 'react-icons/fa'
+import girrrl from "../../assets/contact_girl.png";
+import { FaFacebook, FaInstagram, FaTwitter, FaLinkedinIn } from "react-icons/fa";
+import bulb from "../../assets/light-bulb.png"
+import vaisaki from "../../assets/performance.png"
+import inventoryIcon from "../../assets/supplier.png"
+import customerIcon from "../../assets/public-relation.png"
+import realTimeIcon from "../../assets/24-hours-support.png"
+import scalableIcon from "../../assets/energy-consumption.png"
+import secureIcon from "../../assets/cyber-security.png"
+import analyticsIcon from "../../assets/seo-report.png"
+import { toast, ToastContainer } from 'react-toastify'; // Import react-toastify
+import 'react-toastify/dist/ReactToastify.css'; // Import CSS for react-toastify
+import { useNavigate } from 'react-router-dom';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '../../firebaseConfig';
+import { Helmet } from "react-helmet-async";
 
-/* ================= LOTTIES ================= */
-import analyticsAnim from "../../assets/lottie/analytics.json";
-import isometricAnim from "../../assets/lottie/isometric.json";
-import revenueAnim from "../../assets/lottie/Revenue.json";
-import contactAnim from "../../assets/lottie/Contact Us.json";
+function Landing() {
 
-/* ================= MOTION VARIANTS ================= */
-
-const sectionFade = {
-  hidden: { opacity: 0, y: 60 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] },
-  },
-};
-
-/* ================= COUNTER ================= */
-
-function AnimatedCounter({ value }) {
-  const ref = useRef(null);
-  const motionValue = useMotionValue(0);
-  const rounded = useTransform(motionValue, Math.round);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          animate(motionValue, value, { duration: 1.6, ease: "easeOut" });
-        }
-      },
-      { threshold: 0.6 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [value]);
-
-  return (
-    <span ref={ref}>
-      <motion.span>{rounded}</motion.span>
-    </span>
-  );
-}
-
-/* ================= PAGE ================= */
-
-export default function Landing() {
+  const [activeIndex, setActiveIndex] = useState(null);
   const navigate = useNavigate();
-  const [showCTA, setShowCTA] = useState(false);
+  const toggleFAQ = (index) => {
+    setActiveIndex(activeIndex === index ? null : index);
+  };
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const handleOpenModal = () => {
+    console.log("Opening Modal");
+    setIsModalOpen(true);
+  };
 
-  useEffect(() => {
-    const onScroll = () => setShowCTA(window.scrollY > 700);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const handleCloseModal = () => {
+    console.log("Closing Modal");
+    setIsModalOpen(false);
+  };
+const handleFormSubmit = async (e, source) => {
+  e.preventDefault();
 
+  const form = e.target;
+  const formData = new FormData(form);
+
+  // Extract common fields
+  const name = formData.get('name') || '';
+  const emailId = formData.get('emailId') || formData.get('email') || '';
+  const contactNumber = formData.get('contactNumber') || '';
+  const businessName = formData.get('businessName') || '';
+  const comment = formData.get('comment') || '';
+
+  try {
+    await addDoc(collection(db, 'leads'), {
+      businessName,
+      contactNumber,
+      emailId,
+      name,
+      comment,
+      source, // 'demo' or 'contact'
+      createdAt: new Date() // optional timestamp
+    });
+
+    alert("Form submitted successfully!");
+    form.reset();
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    alert("Failed to submit form.");
+  }
+};
+  const handleclicksign = () => {
+    navigate('/Login');
+  };
   return (
-    <>
-      {/* ================= NAV ================= */}
-      <header className="nav glass">
-        <div>
-          <h2 className="logo">Borezy</h2>
-          <span className="logo-tagline">Rental OS</span>
-        </div>
+     <>
+      {/* 🔹 SEO START */}
+      <Helmet>
+  {/* Basic SEO */}
+  <title>Borezy | Rental Business Management Software</title>
 
-        <nav>
+  <meta
+    name="description"
+    content="Borezy is an all-in-one rental business management platform to manage inventory, customers, subscriptions, pricing, and business performance."
+  />
+
+  <meta
+    name="keywords"
+    content="rental business software, rental management system, inventory rental software, asset rental platform"
+  />
+
+  <link rel="canonical" href="https://borezy.com/" />
+
+  {/* Organization Schema */}
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Borezy",
+      "url": "https://borezy.com",
+      "logo": "https://borezy.com/logo192.png",
+      "description": "Borezy is an all-in-one rental business management software for inventory, customers, subscriptions, and analytics.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Pune",
+        "addressCountry": "IN"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "sales",
+        "email": "borezydev@gmail.com"
+      }
+    }
+    `}
+  </script>
+
+  {/* Software Application Schema */}
+  <script type="application/ld+json">
+    {`
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Borezy",
+      "operatingSystem": "Web",
+      "applicationCategory": "BusinessApplication",
+      "description": "Rental business management platform to manage inventory, pricing, customers, and business performance.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "INR"
+      },
+      "url": "https://borezy.com"
+    }
+    `}
+  </script>
+</Helmet>
+
+    <div className="App">
+      <header className="navbar">
+        <div><img src={logo} className="logo"></img></div>
+        <nav >
+          <a href="#hero">Home</a>
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
-          <a href="#contact">Contact</a>
-          <span className="nav-trust">ISO-grade Security</span>
-          <button className="btn-primary" onClick={() => navigate("/login")}>
-            Sign In
-          </button>
+          <a href="#faq">FAQ</a>
+          <a href="#contact">Contact us</a>
+          <button className="sign-in" onClick={handleclicksign}>Sign In</button>
         </nav>
       </header>
 
-      {/* ================= HERO ================= */}
-      <section className="hero">
-        <div className="parallax-bg" />
-        <div className="glow-orb" />
-
-        <motion.div
-          className="hero-left"
-          initial="hidden"
-          animate="visible"
-          variants={sectionFade}
-        >
-          <span className="badge">🚀 Enterprise Rental Platform</span>
-
-          <h1>
-            The Operating System
-            <br />
-            for <span>Scalable Rental Businesses</span>
-          </h1>
-
+      <section id="hero" className="hero">
+        <div className="hero-content">
+          <h1>Enhance Your Rental Business</h1>
           <p>
-            Eliminate booking errors, payment leakages, and operational chaos —
-            with one system built for scale and control.
+            Streamline your rental operations, enhance customer satisfaction,
+            and boost conversions with our integrated solutions.
           </p>
-
-          <div className="hero-actions">
-            <motion.button
-              className="btn-primary"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.96 }}
-            >
-              Get a Free Workflow Demo <FaArrowRight />
-            </motion.button>
-
-            <button className="btn-ghost">See How It Works</button>
+          <button className="demo-button" onClick={handleOpenModal}>Take a demo</button>
+        </div>
+        <img
+          src={boy}
+          alt="Person using app"
+          className="hero-image"
+        />
+      </section>
+      {isModalOpen && (
+        <div className="modal-overlay1">
+          <div className="modal-content1">
+            <button className="close-button" onClick={handleCloseModal}>
+              &times;
+            </button>
+           <h2>Request a Demo</h2>
+<form className="demo-form" onSubmit={(e) => handleFormSubmit(e, 'demo')}>
+  <input type="text" name="name" placeholder="Full name" required />
+  <input type="text" name="businessName" placeholder="Business name" required />
+  <input type="number" name="contactNumber" placeholder="Contact number" required />
+  <input type="email" name="emailId" placeholder="Email Address" required />
+  <button type="submit">Submit</button>
+</form>
           </div>
+        </div>
+      )}
 
-          <p className="hero-proof">
-            Used by 300+ rental businesses • ₹80Cr+ revenue tracked
-          </p>
-        </motion.div>
-
-        <motion.div
-          className="hero-right glass"
-          initial={{ opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8 }}
-        >
-          <Lottie animationData={analyticsAnim} loop />
-        </motion.div>
+      <section id="features" className="features">
+        <h2>Features</h2>
+        <div className="feature-cards">
+          {[
+            {
+              title: "All-in-One Solution",
+              description: "Manage every aspect of your rental business with a unified platform.",
+              img: <img src={bulb} alt="Feature icon" />
+            },
+            {
+              title: "Enhanced Efficiency",
+              description: "Streamline operations to save time and maximize productivity.",
+              img: <img src={vaisaki} alt="Feature icon" />
+            },
+            {
+              title: "Inventory Optimization",
+              description: "Track and manage inventory levels effortlessly to avoid shortages.",
+              img: <img src={inventoryIcon} alt="Inventory icon" /> // Replace with the correct icon source
+            },
+            {
+              title: "Customer-Centric Design",
+              description: "Offer personalized experiences to boost customer satisfaction.",
+              img: <img src={customerIcon} alt="Customer-centric icon" /> // Replace with the correct icon source
+            },
+            {
+              title: "Real-Time Updates",
+              description: "Access real-time data insights to make informed decisions instantly.",
+              img: <img src={realTimeIcon} alt="Real-time updates icon" /> // Replace with the correct icon source
+            },
+            {
+              title: "Scalable and Adaptable",
+              description: "Grow your business seamlessly with our scalable solutions.",
+              img: <img src={scalableIcon} alt="Scalable solutions icon" /> // Replace with the correct icon source
+            },
+            {
+              title: "Reliable and Secure",
+              description: "Ensure data security and reliability with advanced technology.",
+              img: <img src={secureIcon} alt="Secure icon" /> // Replace with the correct icon source
+            },
+            {
+              title: "Custom Reports and Analytics",
+              description: "Generate tailored reports to analyze and enhance your performance.",
+              img: <img src={analyticsIcon} alt="Analytics icon" /> // Replace with the correct icon source
+            },
+          ].map((feature, index) => (
+            <div key={index} className="feature-card">
+              {feature.img}
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
-      {/* ================= TRUST ================= */}
-      <motion.section
-        className="trust"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <p className="trust-text">
-          Powering multi-location rental businesses across India
-        </p>
-        <div className="trust-logos">
-          <span>Event Rentals</span>
-          <span>Camera Rentals</span>
-          <span>Wedding Rentals</span>
-          <span>Construction Rentals</span>
-          <span>Furniture Rentals</span>
-        </div>
-      </motion.section>
 
-         <motion.section
-        id="features"
-        className="story"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <h2>Everything You Need. Nothing You Don’t.</h2>
 
-        <div className="story-grid">
+      <section id="pricing" className="pricing">
+        <h2>Subscription Packages</h2>
+        <div className="pricing-cards">
           {[
-            {
-              anim: isometricAnim,
-              title: "Smart Inventory",
-              text: "Live availability with automated return tracking.",
-            },
-            {
-              anim: revenueAnim,
-              title: "Rent & Deposit Logic",
-              text: "Automatic balances with zero reconciliation.",
-            },
-            {
-              anim: analyticsAnim,
-              title: "Live Analytics",
-              text: "Decision-ready reports without spreadsheets.",
-            },
-            {
-              anim: contactAnim,
-              title: "Customer Management",
-              text: "Complete booking & customer history in one place.",
-            },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              className="story-card glass"
-              whileHover={{ y: -6, scale: 1.02 }}
-            >
-              <Lottie animationData={item.anim} style={{ height: 220 }} />
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
-            </motion.div>
-          ))}
-        </div>
-
-        <p className="feature-footer">
-          And 20+ more features built for real rental workflows
-        </p>
-      </motion.section>
-
-
-      {/* ================= METRICS ================= */}
-      <motion.section
-        className="metrics"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <p className="metrics-subtitle">
-          Real impact across growing rental businesses
-        </p>
-
-        <div className="metrics-grid">
-          {[
-            { label: "Rentals Managed Reliably", value: 125000 },
-            { label: "Revenue Tracked Without Leakage (₹)", value: 82000000 },
-            { label: "Businesses Scaling with Borezy", value: 340 },
-            { label: "Operational Hours Saved / Month", value: 42 },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              className="metric-card glass"
-              whileHover={{ y: -6, scale: 1.02 }}
-            >
-              <h2>
-                <AnimatedCounter value={item.value} />
-              </h2>
-              <p>{item.label}</p>
-              <small>Last 12 months</small>
-            </motion.div>
-          ))}
-        </div>
-      </motion.section>
-
-      {/* ================= WORKFLOW ================= */}
-      <motion.section
-        className="workflow"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <h2>How Borezy Works</h2>
-
-        <div className="workflow-grid">
-          {[
-            {
-              step: "01",
-              title: "Model Your Inventory",
-              text: "Items, pricing, deposits & locations.",
-            },
-            {
-              step: "02",
-              title: "Automate Bookings",
-              text: "No overlaps. No manual errors.",
-            },
-            {
-              step: "03",
-              title: "Control Cash Flow",
-              text: "Rent & deposits stay balanced.",
-            },
-            {
-              step: "04",
-              title: "Scale with Insights",
-              text: "Live revenue & utilization data.",
-            },
-          ].map((w, i) => (
-            <motion.div
-              key={i}
-              className="workflow-card glass"
-              whileHover={{ y: -6, scale: 1.02 }}
-            >
-              <span>{w.step}</span>
-              <h3>{w.title}</h3>
-              <p>{w.text}</p>
-            </motion.div>
-          ))}
-        </div>
-      </motion.section>
-
-      {/* ================= DEEP FEATURE ================= */}
-      <motion.section
-        className="deep-feature"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <div className="deep-grid">
-          <div>
-            <h2>Inventory Intelligence</h2>
-            <p>
-              Always know what’s available, rented, delayed, or returning —
-              across dates and locations.
-            </p>
-
-            <ul>
-              <li><FaCheck /> 99.9% booking accuracy</li>
-              <li><FaCheck /> Zero overlap guarantee</li>
-              <li><FaCheck /> Multi-location ready</li>
-            </ul>
-
-            <div className="proof-strip">
-              <div><strong>99.9%</strong><span>Accuracy</span></div>
-              <div><strong>0</strong><span>Overbookings</span></div>
-              <div><strong>Multi-Location</strong><span>Ready</span></div>
+            { name: "Start", price: "Free", users: "1 User", duration: "7 Days" },
+            { name: "Basic", price: "₹300", users: "3 Users", duration: "7 Days" },
+            { name: "Super", price: "₹1,100", users: "5 Users", duration: "30 Days" },
+            { name: "Premium", price: "₹10,000", users: "5 Users", duration: "365 Days" },
+          ].map((plan, index) => (
+            <div key={index} className="pricing-card">
+              <h5>{plan.name}</h5>
+              <h3 className="price">{plan.price}</h3>
+              <p>{plan.users}</p>
+              <p>{plan.duration}</p>
+              <button onClick={handleOpenModal}>{plan.name === "Start" ? "Take demo" : "Buy now"}</button>
             </div>
-
-            <small>
-              Used by event, camera & construction rentals
-            </small>
-          </div>
-
-          <div className="glass preview-box">
-            <Lottie animationData={isometricAnim} />
-          </div>
+          ))}
         </div>
-      </motion.section>
+      </section>
 
-      {/* ================= FEATURES ================= */}
-   
-      {/* ================= SECURITY ================= */}
-      <motion.section
-        className="security"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <h2>Enterprise-grade Security & Reliability</h2>
-        <p className="security-subtitle">
-          Built with infrastructure designed for scale, compliance, and uptime.
-        </p>
+      <section id="faq" className="faq">
+        <h2>Frequently Asked Questions</h2>
+        {[
+          {
+            question: "What is Borezy?",
+            answer: "Borezy is a platform to streamline rental operations, enhance customer satisfaction, and improve business efficiency.",
+          },
+          {
+            question: "Who can use Borezy?",
+            answer: "Any rental business, small or large, can benefit from Borezy's integrated solutions.",
+          },
+          {
+            question: "How does Borezy handle inventory management?",
+            answer: "Borezy provides real-time inventory tracking and updates to ensure stock levels are always optimized.",
+          },
+          {
+            question: "Is Borezy suitable for large-scale businesses?",
+            answer: "Yes, Borezy is highly scalable and can accommodate businesses of any size.",
+          },
+        ].map((faq, index) => (
+          <div
+            key={index}
+            className={`faq-item ${activeIndex === index ? "active" : ""}`}
+            onClick={() => toggleFAQ(index)}
+          >
+            <div className="faq-header">
+              <h5>{faq.question}</h5>
+              <span className="faq-icon">
+                {activeIndex === index ? <FaAngleUp /> : <FaAngleDown />}
+              </span>
+            </div>
+            {activeIndex === index && <p>{faq.answer}</p>}
+          </div>
+        ))}
+      </section>
 
-        <div className="security-grid">
-          <div className="security-card glass">
-            <h4>Data Protection</h4>
-            <p>Encrypted at rest & in transit</p>
+
+
+      <section id="contact" className="contact">
+        <div className="contact-container">
+          <div className="contact-image">
+            <img src={girrrl} alt="Contact Us" />
           </div>
-          <div className="security-card glass">
-            <h4>Reliability</h4>
-            <p>Daily backups & monitored uptime</p>
-          </div>
-          <div className="security-card glass">
-            <h4>Scalability</h4>
-            <p>Optimized for high-volume rentals</p>
-          </div>
-          <div className="security-card glass">
-            <h4>Support</h4>
-            <p>Onboarding & priority assistance</p>
-          </div>
+         <div className="contact-form">
+  <h2>Contact Us</h2>
+  <form onSubmit={(e) => handleFormSubmit(e, 'contact')}>
+    <input type="text" name="name" placeholder="Name" required />
+    <input type="email" name="emailId" placeholder="Email" required />
+    <textarea name="comment" placeholder="Message" required></textarea>
+    <button type="submit">Submit</button>
+  </form>
+</div>
         </div>
-      </motion.section>
+      </section>
 
-      {/* ================= PRICING ================= */}
-      <motion.section
-        id="pricing"
-        className="pricing"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <h2>Simple Pricing. Built for Growth.</h2>
-
-        <div className="pricing-grid">
-          <div className="pricing-card">
-            <h3>Enterprise</h3>
-            <h1>₹25,000+</h1>
-            <p>Custom workflows, roles & integrations</p>
-            <button className="btn-ghost full">Talk to Sales</button>
-          </div>
-
-          <div className="pricing-card popular">
-            <span className="popular-tag">Most Chosen</span>
-            <h3>Pro</h3>
-            <h1>₹1,100 / month</h1>
-            <p>Trusted by growing rental teams</p>
-            <button className="btn-primary full">
-              Start Free Demo
-            </button>
-          </div>
-
-          <div className="pricing-card">
-            <h3>Starter</h3>
-            <p>For early-stage teams validating workflows</p>
-            <h1>₹0</h1>
-            <button className="btn-ghost full">Try Now</button>
-          </div>
-        </div>
-
-        <p className="pricing-note">
-          No credit card required • Cancel anytime
-        </p>
-      </motion.section>
-
-      {/* ================= CONTACT ================= */}
-      <motion.section
-        id="contact"
-        className="contact"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <div className="contact-grid">
-          <div className="glass">
-            <span className="contact-badge">Free Strategy Demo</span>
-            <h2>See How Borezy Fits Your Business</h2>
-            <p>
-              No sales pressure. Just a clear walkthrough of how Borezy
-              fits your rental operation.
-            </p>
-
-            <form>
-              <input placeholder="Your name" />
-              <input placeholder="Business email" />
-              <input placeholder="Business type (Event, Camera, etc.)" />
-              <button className="btn-primary full">
-                Request Demo
-              </button>
-            </form>
-
-            <small>We usually respond within 24 hours</small>
-          </div>
-
-          <div className="glass">
-            <Lottie animationData={contactAnim} style={{ height: 320 }} />
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ================= FINAL CTA ================= */}
-      <motion.section
-        className="final-cta"
-        variants={sectionFade}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-      >
-        <h2>
-          Replace spreadsheets with a system
-          <br /> built for scale and control.
-        </h2>
-        <motion.button
-          className="btn-primary"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.96 }}
-        >
-          Get Free Demo
-        </motion.button>
-      </motion.section>
-
-      {/* ================= FOOTER ================= */}
       <footer className="footer">
-        © 2025 Borezy • Privacy • Terms • Security
-      </footer>
+        <div className="footer-container">
+          <div className="footer-section company-info">
+            <h3>About Us</h3>
+            <p>Borezy helps rental businesses streamline operations, improve customer satisfaction, and drive efficiency.</p>
+          </div>
 
-      {/* ================= STICKY CTA ================= */}
-      {showCTA && (
-        <motion.div
-          className="sticky-cta glass"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 30 }}
-        >
-          <span>Ready to modernize your rental business?</span>
-          <button className="btn-primary">Get Free Demo</button>
-          <button onClick={() => setShowCTA(false)}>✕</button>
-        </motion.div>
-      )}
+          <div className="footer-section footer-links">
+            <h3>Quick Links</h3>
+            <ul>
+              <li><a href="#features">Features</a></li>
+              <li><a href="#faq">FAQ</a></li>
+              <li><a href="#contact">Contact</a></li>
+              <li><a href="#pricing">Pricing</a></li>
+            </ul>
+          </div>
+
+          <div className="footer-section contact-info">
+            <h3>Contact Us</h3>
+            <p>Email: borezydev@gmail.com</p>
+            <p>Phone: +91 9766130707 </p>
+            <p>Address: Borezy, Pune, India</p>
+          </div>
+
+          <div className="footer-section social-media">
+            <h3>Follow Us</h3>
+            <div className="social-icons">
+              <a href="#" aria-label="Facebook">
+                <FaFacebook />
+              </a>
+              <a href="#" aria-label="Twitter">
+                <FaTwitter />
+              </a>
+              <a href="#" aria-label="Instagram">
+                <FaInstagram />
+              </a>
+              <a href="#" aria-label="LinkedIn">
+                <FaLinkedinIn />
+              </a>
+            </div>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <p>©️ 2024 Borezy. All Rights Reserved.</p>
+        </div>
+      </footer>
+      <ToastContainer/>
+    </div>
     </>
   );
 }
+
+export default Landing;

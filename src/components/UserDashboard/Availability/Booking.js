@@ -294,62 +294,62 @@ const [wizardStep, setWizardStep] = useState(1);
       }
     }
   };
+const DEFAULT_RENTAL_DAYS = 2; // 🔧 change once, applies everywhere
 
-  const handleFirstProductDateChange = (e, field, index) => {
-    const newProducts = [...products];
-    let value = e.target.value;
+ const handleFirstProductDateChange = (e, field, index) => {
+  const newProducts = [...products];
+  const value = e.target.value;
 
-    const selectedDate = new Date(value);
-    const today = new Date();
+  if (field === "pickupDate") {
+    const pickupDate = new Date(value);
 
-    if (field === "pickupDate") {
-      if (selectedDate < today) {
-        toast.warn("Pickup date cannot be in the past.");
-        return;
-      }
+    // 🔥 FORCE default return = pickup + DEFAULT_RENTAL_DAYS
+    const returnDate = new Date(pickupDate);
+    returnDate.setDate(
+      returnDate.getDate() + DEFAULT_RENTAL_DAYS
+    );
+    returnDate.setHours(23, 0, 0, 0);
 
-      // Only auto-update returnDate if it’s the first product
-      if (index === 0) {
-        const returnDate = new Date(newProducts[index].returnDate);
-        const minReturnDate = new Date(selectedDate);
-        minReturnDate.setDate(minReturnDate.getDate() + 2);
-        minReturnDate.setHours(23, 0, 0, 0); // 🔥 2:00 PM local time
+    newProducts[index].pickupDate = value;
+    newProducts[index].returnDate =
+      formatDateTimeLocal(returnDate);
 
-        if (!newProducts[index].returnDate || returnDate < minReturnDate) {
-          newProducts[index].returnDate = formatDateTimeLocal(minReturnDate);
-        }
-      }
-
-
-      // Validate pickup > return
-      const returnDate = new Date(newProducts[index].returnDate);
-      if (returnDate && selectedDate > returnDate) {
-        toast.warn("Pickup date cannot be later than return date.");
-        return;
-      }
-    }
-
-    if (field === "returnDate") {
-      const pickupDate = new Date(newProducts[index].pickupDate);
-      if (selectedDate < pickupDate) {
-        toast.warn("Return date cannot be earlier than pickup date.");
-        return;
-      }
-    }
-
-    // ✅ Don’t override time – use user-picked value
-    newProducts[index][field] = value;
-
-    // Update first product's shared state
+    // Sync first product dates
     if (index === 0) {
       setFirstProductDates({
-        ...firstProductDates,
-        [field]: value,
+        pickupDate: value,
+        returnDate: formatDateTimeLocal(returnDate),
       });
     }
 
     setProducts(newProducts);
-  };
+    return;
+  }
+
+  if (field === "returnDate") {
+    const pickupDate = new Date(newProducts[index].pickupDate);
+    const selectedReturnDate = new Date(value);
+
+    // ✅ ONLY validation: return cannot be earlier than pickup
+    if (selectedReturnDate < pickupDate) {
+      toast.warn("Return date cannot be earlier than pickup date.");
+      return;
+    }
+
+    newProducts[index].returnDate = value;
+
+    if (index === 0) {
+      setFirstProductDates((prev) => ({
+        ...prev,
+        returnDate: value,
+      }));
+    }
+
+    setProducts(newProducts);
+    return;
+  }
+};
+
 
 
 
@@ -1134,7 +1134,7 @@ const toggleAvailability1Form = (fromWizard = false) => {
                       onChange={(e) =>
                         handleFirstProductDateChange(e, "pickupDate", index)
                       }
-                      min={new Date().toISOString().slice(0, 16)}
+                      // min={new Date().toISOString().slice(0, 16)}
                       disabled={index > 0}
                       required
                     />
@@ -1149,7 +1149,7 @@ const toggleAvailability1Form = (fromWizard = false) => {
                       onChange={(e) =>
                         handleFirstProductDateChange(e, "returnDate", index)
                       }
-                      min={new Date().toISOString().slice(0, 16)}
+                      // min={new Date().toISOString().slice(0, 16)}
                       disabled={index > 0}
                       required
                     />

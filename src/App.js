@@ -59,10 +59,13 @@ import FirebaseAuthActionHandler from './components/Auth/FirebaseAuthActionHandl
 import AccountPage from './components/UserDashboard/Availability/AccountsReportPage';
 import AccountPageLogic from './components/UserDashboard/Availability/AccountsReportPage';
 import UpdateRentalPeriodHardcoded from './components/UserDashboard/Availability/UpdateRentalPeriodHardcoded';
+import InactivityGuard from "./components/Auth/InactivityGuard";
+
 const App = () => (
 
   <UserProvider>
     <Router>
+      <InactivityGuard>
       <Routes>
         {/* Public Route - Login Page */}
         <Route path="/" element={<Landing />} />
@@ -362,6 +365,7 @@ const App = () => (
           } />
         </Route>
       </Routes>
+      </InactivityGuard>
     </Router>
   </UserProvider>
 );

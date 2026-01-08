@@ -142,37 +142,49 @@ const [viewMode, setViewMode] = useState('compact'); // 'compact' | 'comfortable
 // ================= FIELD VISIBILITY =================
 const [visibleFields, setVisibleFields] = useState({});
 const [showFieldDropdown, setShowFieldDropdown] = useState(false);
+const [tempVisibleFields, setTempVisibleFields] = useState({});
+const [savingFields, setSavingFields] = useState(false);
 
 useEffect(() => {
-  const saved = localStorage.getItem("booking_visible_fields");
+  if (!userData?.branchCode) return;
 
-  if (saved) {
-    // Use user's saved preferences
-    setVisibleFields(JSON.parse(saved));
-  } else {
-    // Smart defaults
-    const initial = {};
+  const loadFieldSettings = async () => {
+    try {
+      const ref = doc(db, "branches", userData.branchCode);
+      const snap = await getDoc(ref);
 
-    EXPORT_FIELDS.forEach((field) => {
-      if (DEFAULT_HIDDEN_FIELDS.includes(field)) {
-        initial[field] = false; // unchecked by default
+      if (snap.exists() && snap.data().bookingFieldSettings?.visibleFields) {
+        setVisibleFields(snap.data().bookingFieldSettings.visibleFields);
       } else {
-        initial[field] = true; // checked by default
+        // First-time default
+        const defaults = {};
+        EXPORT_FIELDS.forEach((field) => {
+          defaults[field] = !DEFAULT_HIDDEN_FIELDS.includes(field);
+        });
+
+        setVisibleFields(defaults);
+
+        await setDoc(
+          ref,
+          {
+            bookingFieldSettings: {
+              visibleFields: defaults,
+              createdAt: serverTimestamp(),
+              createdBy: userData?.email || "system",
+            },
+          },
+          { merge: true }
+        );
       }
-    });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load field settings");
+    }
+  };
 
-    setVisibleFields(initial);
-  }
-}, []);
+  loadFieldSettings();
+}, [userData?.branchCode]);
 
-useEffect(() => {
-  if (Object.keys(visibleFields).length > 0) {
-    localStorage.setItem(
-      "booking_visible_fields",
-      JSON.stringify(visibleFields)
-    );
-  }
-}, [visibleFields]);
 
 
   const handleBookingClick = (booking) => {
@@ -884,10 +896,15 @@ return (
 
           {/* ========= CUSTOMIZE FIELDS DROPDOWN ========= */}
           {/* ================= CUSTOMIZE FIELDS BUTTON ================= */}
+{/* ================= CUSTOMIZE FIELDS BUTTON ================= */}
 <div className="column-selector">
   <button
     className="btn-secondary"
-    onClick={() => setShowFieldDropdown(true)}
+    onClick={() => {
+      // Copy current settings into temp state
+      setTempVisibleFields(visibleFields);
+      setShowFieldDropdown(true);
+    }}
   >
     Customize Fields
   </button>
@@ -920,9 +937,9 @@ return (
           <label key={field} className="column-option">
             <input
               type="checkbox"
-              checked={visibleFields[field]}
+              checked={!!tempVisibleFields[field]}
               onChange={() =>
-                setVisibleFields((prev) => ({
+                setTempVisibleFields((prev) => ({
                   ...prev,
                   [field]: !prev[field],
                 }))
@@ -932,9 +949,57 @@ return (
           </label>
         ))}
       </div>
+
+      {/* ===== FOOTER ===== */}
+      <div className="field-modal-footer">
+        <button
+          className="btn-secondary"
+          disabled={savingFields}
+          onClick={() => setShowFieldDropdown(false)}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="btn-primary"
+          disabled={savingFields}
+          onClick={async () => {
+            try {
+              setSavingFields(true);
+
+              const branchRef = doc(db, "branches", userData.branchCode);
+
+              await setDoc(
+                branchRef,
+                {
+                  bookingFieldSettings: {
+                    visibleFields: tempVisibleFields,
+                    updatedAt: serverTimestamp(),
+                  },
+                },
+                { merge: true }
+              );
+
+              // Apply saved settings to UI
+              setVisibleFields(tempVisibleFields);
+              setShowFieldDropdown(false);
+
+              toast.success("Field preferences saved for this branch");
+            } catch (error) {
+              console.error(error);
+              toast.error("Failed to save field preferences");
+            } finally {
+              setSavingFields(false);
+            }
+          }}
+        >
+          {savingFields ? "Saving..." : "Save"}
+        </button>
+      </div>
     </div>
   </div>
 )}
+
 
         </div>
 

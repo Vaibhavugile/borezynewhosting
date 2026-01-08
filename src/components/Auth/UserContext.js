@@ -1,20 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
 
-// Create the context
 const UserContext = createContext();
 
-// Custom hook to use the UserContext
 export const useUser = () => useContext(UserContext);
 
-// Provider component
 export const UserProvider = ({ children }) => {
   const [userData, setUserData] = useState(() => {
-    // Get user data from localStorage when the component mounts
     const savedUserData = localStorage.getItem('userData');
     return savedUserData ? JSON.parse(savedUserData) : null;
   });
 
-  // Save user data to localStorage whenever it changes
+  const [autoLogoutEnabled, setAutoLogoutEnabled] = useState(false);
+  const [autoLogoutMinutes, setAutoLogoutMinutes] = useState(2);
+
   useEffect(() => {
     if (userData) {
       localStorage.setItem('userData', JSON.stringify(userData));
@@ -23,8 +23,36 @@ export const UserProvider = ({ children }) => {
     }
   }, [userData]);
 
+  useEffect(() => {
+    if (!userData?.branchCode) return;
+
+    const fetchBranchSettings = async () => {
+      try {
+        const ref = doc(db, "branches", userData.branchCode);
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          const data = snap.data();
+          setAutoLogoutEnabled(!!data.autoLogoutEnabled);
+          setAutoLogoutMinutes(data.autoLogoutMinutes || 2);
+        }
+      } catch (error) {
+        console.error("Error fetching auto logout settings", error);
+      }
+    };
+
+    fetchBranchSettings();
+  }, [userData?.branchCode]);
+
   return (
-    <UserContext.Provider value={{ userData, setUserData }}>
+    <UserContext.Provider
+      value={{
+        userData,
+        setUserData,
+        autoLogoutEnabled,
+        autoLogoutMinutes,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

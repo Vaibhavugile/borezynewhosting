@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, updateDoc, doc, arrayUnion, } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, arrayUnion,getDoc } from 'firebase/firestore';
 import backIcon from '../../../assets/arrowiosback_111116.png';
 import { db } from '../../../firebaseConfig';
 import './BookingDetailsPage.css';
@@ -92,6 +92,7 @@ const BookingDetailsPage = () => {
   const [paymentStatus, setPaymentStatus] = useState('');
   const [firstPaymentDetails, setFirstPaymentDetails] = useState('');
   const [firstPaymentMode, setFirstPaymentMode] = useState('');
+const [branchName, setBranchName] = useState('');
 
 const location = useLocation();
 const isDeleted = location.state?.isDeleted || false;
@@ -188,6 +189,25 @@ const isDeleted = location.state?.isDeleted || false;
 
     fetchBookingAndProductDetails();
   }, [receiptNumber, userData.branchCode]);
+  useEffect(() => {
+  const fetchBranchName = async () => {
+    try {
+      if (!userData?.branchCode) return;
+
+      const branchRef = doc(db, "branches", userData.branchCode);
+      const branchSnap = await getDoc(branchRef);
+
+      if (branchSnap.exists()) {
+        setBranchName(branchSnap.data().branchName || "");
+      }
+    } catch (error) {
+      console.error("Error fetching branch name:", error);
+    }
+  };
+
+  fetchBranchName();
+}, [userData?.branchCode]);
+
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -512,6 +532,10 @@ const isDeleted = location.state?.isDeleted || false;
 return (
   <>
     <div className="booking-details-container">
+       <div className="print-header">
+    <h1>{branchName || "hhhhhh"}</h1>
+     <h2>Receipt No: {receiptNumber}</h2>
+  </div>
 
       {/* ================= HEADER ================= */}
       <div className="saas-topbar">
@@ -686,36 +710,97 @@ return (
           </section>
 
           {/* ================= PRODUCT DETAILS ================= */}
-          {!isDeleted && (
-            <section className="card">
-              <h3>Product Details</h3>
+         {!isDeleted && (
+  <section className="card">
+    <h3>Product Details</h3>
 
-              <div className="product-card-grid">
-                {bookings.map((booking, index) => (
-                  <div key={index} className="product-card">
-                    <img src={booking.product?.imageUrls} alt="Product" />
+    <div className="product-table-wrapper">
+      <table className="product-table">
+        <thead>
+          <tr>
+            <th>Image</th>
+            <th>Product</th>
+            <th>Code</th>
+            <th>Qty</th>
+            <th>Rent</th>
+            <th>Deposit</th>
+            <th>Extra</th>
+            <th>Pickup</th>
+            <th>Return</th>
+            <th>Alteration</th>
+          </tr>
+        </thead>
 
-                    <h4>{booking.product?.productName}</h4>
-                    <p>Code: {booking.product?.productCode}</p>
+        <tbody>
+          {bookings.length === 0 ? (
+            <tr className="empty-row">
+              <td colSpan="10">No products added</td>
+            </tr>
+          ) : (
+            bookings.map((booking, index) => (
+              <tr key={index}>
+                {/* IMAGE */}
+                <td data-label="Image">
+                  <img
+                    src={booking.product?.imageUrls}
+                    alt={booking.product?.productName}
+                    className="product-table-img"
+                  />
+                </td>
 
-                    <div className="product-meta">
-                      <span>Qty: {booking.quantity}</span>
-                      <span>Deposit: ₹{booking.deposit}</span>
-                      <span>Rent: ₹{booking.price}</span>
-                      <span>Extra Rent: ₹{booking.extraRent}</span>
-                    </div>
+                {/* PRODUCT */}
+                <td data-label="Product">
+                  {booking.product?.productName}
+                </td>
 
-                    <div className="product-dates">
-<p><strong>Pickup:</strong> {formatDateDMY(booking.pickupDate)}</p>
-<p><strong>Return:</strong> {formatDateDMY(booking.returnDate)}</p>
-                    </div>
+                {/* CODE */}
+                <td data-label="Code">
+                  {booking.product?.productCode}
+                </td>
 
-                    <p><strong>Alteration:</strong> {userDetails?.alterations || "N/A"}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+                {/* QTY */}
+                <td data-label="Qty">
+                  {booking.quantity}
+                </td>
+
+                {/* RENT */}
+                <td data-label="Rent">
+                  ₹{booking.price}
+                </td>
+
+                {/* DEPOSIT */}
+                <td data-label="Deposit">
+                  ₹{booking.deposit}
+                </td>
+
+                {/* EXTRA */}
+                <td data-label="Extra Rent">
+                  ₹{booking.extraRent || "-"}
+                </td>
+
+                {/* PICKUP */}
+                <td data-label="Pickup">
+                  {formatDateDMY(booking.pickupDate)}
+                </td>
+
+                {/* RETURN */}
+                <td data-label="Return">
+                  {formatDateDMY(booking.returnDate)}
+                </td>
+
+                {/* ALTERATION */}
+                <td data-label="Alteration">
+                  {userDetails?.alterations || "N/A"}
+                </td>
+              </tr>
+            ))
           )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+)}
+
 
           {/* ================= PAYMENT DETAILS (ALL FIELDS) ================= */}
           <section className="card">

@@ -250,3 +250,12 @@ tr:hover td {
     font-size: 13px;
   }
 }
+.receipt-link {
+ 
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.receipt-link:hover {
+  text-decoration: underline;
+}

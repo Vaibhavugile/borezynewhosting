@@ -69,6 +69,21 @@ const DEFAULT_HIDDEN_FIELDS = [
   "FirstPaymentDetails",
   "SecondPaymentDetails",
 ];
+const SEARCHABLE_FIELDS = {
+  receiptNumber: "Receipt No",
+  clientname: "Client Name",
+  contactNo: "Contact",
+  email: "Email",
+  bookingcreation: "Booking Date",
+  pickupDate: "Pickup Date",
+  returnDate: "Return Date",
+  stage: "Stage",
+  IdentityProof: "Identity Proof",
+  IdentityNumber: "Identity Number",
+  Source: "Source",
+  CustomerBy: "Customer By",
+  ReceiptBy: "Receipt By",
+};
 
 
 // ================= FLATTENER =================
@@ -85,8 +100,17 @@ const flattenBooking = (booking) => ({
     ? booking.returnDate.toLocaleDateString()
     : "",
   createdAt: booking.createdAt?.toDate
-    ? booking.createdAt.toDate().toLocaleDateString()
-    : "",
+  ? booking.createdAt.toDate().toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    })
+  : "",
+
   stage: booking.stage,
   products: booking.products
     ?.map((p) => `${p.productCode}×${p.quantity}`)
@@ -453,10 +477,10 @@ useEffect(() => {
           return booking.bookingId && String(booking.bookingId).toLowerCase().includes(lowerCaseQuery);
         } else if (searchField === 'receiptNumber') {
           return booking.receiptNumber && String(booking.receiptNumber).toLowerCase().includes(lowerCaseQuery);
-        } else if (searchField === 'bookingcreation') {
-          return (booking.createdAt && (booking.createdAt).toDate().toLocaleDateString().toLowerCase().includes(lowerCaseQuery));
-        } else if (searchField === 'username') {
-          return booking.username && booking.username.toLowerCase().includes(lowerCaseQuery);
+        } else if (searchField === 'createdAt') {
+          return (booking.createdAt && booking.createdAt.toDate().toLocaleString().toLowerCase().includes(lowerCaseQuery));
+        } else if (searchField === 'clientname') {
+          return booking.clientname && booking.clientname.toLowerCase().includes(lowerCaseQuery);
         }
         else if (searchField === 'emailId') {
           return booking.email && booking.email.toLowerCase().includes(lowerCaseQuery);
@@ -476,7 +500,7 @@ useEffect(() => {
             (booking.bookingId && String(booking.bookingId).toLowerCase().includes(lowerCaseQuery)) ||
             (booking.receiptNumber && String(booking.receiptNumber).toLowerCase().includes(lowerCaseQuery)) ||
             (booking.createdAt && (booking.createdAt).toDate().toLocaleDateString().toLowerCase().includes(lowerCaseQuery)) ||
-            (booking.username && booking.username.toLowerCase().includes(lowerCaseQuery)) ||
+            (booking.clientname && booking.clientname.toLowerCase().includes(lowerCaseQuery)) ||
             (booking.contactNo && String(booking.contactNo).toLowerCase().includes(lowerCaseQuery)) ||
             (booking.email && booking.email.toLowerCase().includes(lowerCaseQuery)) ||
             (booking.pickupDate && new Date(booking.pickupDate).toLocaleDateString().toLowerCase().includes(lowerCaseQuery)) ||
@@ -515,7 +539,16 @@ useEffect(() => {
 
       // Check if `createdAt` exists and is a Timestamp
       const createdAtDate = booking.createdAt && booking.createdAt.toDate
-        ? booking.createdAt.toDate().toLocaleString()
+        ?booking.createdAt.toDate().toLocaleString('en-IN', {
+  day: '2-digit',
+  month: 'long',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true,
+})
+
         : 'N/A'; // Use 'N/A' or another placeholder if `createdAt` is missing
 
       return {
@@ -878,7 +911,8 @@ return (
             >
               <option value="receiptNumber">Receipt No</option>
               <option value="bookingcreation">Booking Date</option>
-              <option value="username">Client Name</option>
+              <option value="createdAt">Created At</option>
+              <option value="clientname">Client Name</option>
               <option value="contactNo">Contact</option>
               <option value="emailId">Email</option>
               <option value="productCode">Product Code</option>

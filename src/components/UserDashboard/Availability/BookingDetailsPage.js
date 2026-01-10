@@ -10,6 +10,7 @@ import 'react-toastify/dist/ReactToastify.css'; // Import CSS for react-toastify
 import { FaWhatsapp } from 'react-icons/fa';
 import { serverTimestamp } from 'firebase/firestore'; // Ensure this is imported
 import { useLocation } from 'react-router-dom';
+
 const formatTimestamp = (timestamp) => {
   if (!timestamp) return 'N/A'; // Handle empty timestamp
 
@@ -62,6 +63,7 @@ const BookingDetailsPage = () => {
   const [selectedContactNo, setSelectedContactNo] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
+const [previewImage, setPreviewImage] = useState(null);
 
   const [isEditingSecondPayment, setIsEditingSecondPayment] = useState(false);
   const [secondPaymentMode, setSecondPaymentMode] = useState('');
@@ -741,11 +743,13 @@ return (
               <tr key={index}>
                 {/* IMAGE */}
                 <td data-label="Image">
-                  <img
-                    src={booking.product?.imageUrls}
-                    alt={booking.product?.productName}
-                    className="product-table-img"
-                  />
+                 <img
+  src={booking.product?.imageUrls}
+  alt={booking.product?.productName}
+  className="product-table-img"
+  onClick={() => setPreviewImage(booking.product?.imageUrls)}
+/>
+
                 </td>
 
                 {/* PRODUCT */}
@@ -967,6 +971,26 @@ return (
         </main>
       </div>
     </div>
+    {previewImage && (
+  <div
+    className="image-preview-overlay"
+    onClick={() => setPreviewImage(null)}
+  >
+    <div
+      className="image-preview-modal"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <img src={previewImage} alt="Preview" />
+      <button
+        className="image-preview-close"
+        onClick={() => setPreviewImage(null)}
+      >
+        ✕
+      </button>
+    </div>
+  </div>
+)}
+
 
     <ToastContainer />
   </>

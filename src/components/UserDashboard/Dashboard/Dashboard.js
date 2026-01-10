@@ -5,6 +5,7 @@ import './Dahboard.css';
 import { useUser } from '../../Auth/UserContext';
 import UserHeader from '../../UserDashboard/UserHeader';
 import UserSidebar from '../../UserDashboard/UserSidebar';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const [bookings, setBookings] = useState([]);
@@ -21,6 +22,7 @@ const Dashboard = () => {
   const { userData } = useUser();
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [filterTitle, setFilterTitle] = useState('');
+const navigate = useNavigate();
 
   const [monthlyFilteredBookings, setMonthlyFilteredBookings] = useState([]);
 
@@ -445,7 +447,13 @@ const Dashboard = () => {
 
                   return (
                     <tr key={i}>
-                      <td>{receiptNumber}</td>
+                      <td
+  className="receipt-link"
+  onClick={() => navigate(`/booking-details/${receiptNumber}`)}
+>
+  {receiptNumber}
+</td>
+
                       <td>{b.createdAt?.toLocaleDateString() || "-"}</td>
                       <td>{b.userDetails?.name || "-"}</td>
                       <td>{b.userDetails?.contact || "-"}</td>

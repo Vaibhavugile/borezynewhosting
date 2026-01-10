@@ -34,7 +34,8 @@ function Booking() {
     discountOnDeposit: '', finalrent: '', finaldeposite: '', totalamounttobepaid: '', amountpaid: '', paymentstatus: '', firstpaymentmode: '', firstpaymentdtails: '', secondpaymentmode: '', secondpaymentdetails: '', specialnote: '',
   });
 
-const [wizardStep, setWizardStep] = useState(1);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [activeProductIndex, setActiveProductIndex] = useState(null);
 
   const [receipt, setReceipt] = useState(null); // Store receipt details
   const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false); // Track if payment is confirmed
@@ -231,7 +232,7 @@ const [wizardStep, setWizardStep] = useState(1);
     newProducts[index].productCode = suggestion.productCode;
     setProducts(newProducts);
     setProductSuggestions([]); // Clear suggestions
-
+ setActiveProductIndex(null);
     // Fetch product details for the selected product code
     fetchProductDetails(suggestion.productCode, index);
   };
@@ -294,61 +295,61 @@ const [wizardStep, setWizardStep] = useState(1);
       }
     }
   };
-const DEFAULT_RENTAL_DAYS = 2; // 🔧 change once, applies everywhere
+  const DEFAULT_RENTAL_DAYS = 2; // 🔧 change once, applies everywhere
 
- const handleFirstProductDateChange = (e, field, index) => {
-  const newProducts = [...products];
-  const value = e.target.value;
+  const handleFirstProductDateChange = (e, field, index) => {
+    const newProducts = [...products];
+    const value = e.target.value;
 
-  if (field === "pickupDate") {
-    const pickupDate = new Date(value);
+    if (field === "pickupDate") {
+      const pickupDate = new Date(value);
 
-    // 🔥 FORCE default return = pickup + DEFAULT_RENTAL_DAYS
-    const returnDate = new Date(pickupDate);
-    returnDate.setDate(
-      returnDate.getDate() + DEFAULT_RENTAL_DAYS
-    );
-    returnDate.setHours(23, 0, 0, 0);
+      // 🔥 FORCE default return = pickup + DEFAULT_RENTAL_DAYS
+      const returnDate = new Date(pickupDate);
+      returnDate.setDate(
+        returnDate.getDate() + DEFAULT_RENTAL_DAYS
+      );
+      returnDate.setHours(23, 0, 0, 0);
 
-    newProducts[index].pickupDate = value;
-    newProducts[index].returnDate =
-      formatDateTimeLocal(returnDate);
+      newProducts[index].pickupDate = value;
+      newProducts[index].returnDate =
+        formatDateTimeLocal(returnDate);
 
-    // Sync first product dates
-    if (index === 0) {
-      setFirstProductDates({
-        pickupDate: value,
-        returnDate: formatDateTimeLocal(returnDate),
-      });
-    }
+      // Sync first product dates
+      if (index === 0) {
+        setFirstProductDates({
+          pickupDate: value,
+          returnDate: formatDateTimeLocal(returnDate),
+        });
+      }
 
-    setProducts(newProducts);
-    return;
-  }
-
-  if (field === "returnDate") {
-    const pickupDate = new Date(newProducts[index].pickupDate);
-    const selectedReturnDate = new Date(value);
-
-    // ✅ ONLY validation: return cannot be earlier than pickup
-    if (selectedReturnDate < pickupDate) {
-      toast.warn("Return date cannot be earlier than pickup date.");
+      setProducts(newProducts);
       return;
     }
 
-    newProducts[index].returnDate = value;
+    if (field === "returnDate") {
+      const pickupDate = new Date(newProducts[index].pickupDate);
+      const selectedReturnDate = new Date(value);
 
-    if (index === 0) {
-      setFirstProductDates((prev) => ({
-        ...prev,
-        returnDate: value,
-      }));
+      // ✅ ONLY validation: return cannot be earlier than pickup
+      if (selectedReturnDate < pickupDate) {
+        toast.warn("Return date cannot be earlier than pickup date.");
+        return;
+      }
+
+      newProducts[index].returnDate = value;
+
+      if (index === 0) {
+        setFirstProductDates((prev) => ({
+          ...prev,
+          returnDate: value,
+        }));
+      }
+
+      setProducts(newProducts);
+      return;
     }
-
-    setProducts(newProducts);
-    return;
-  }
-};
+  };
 
 
 
@@ -585,143 +586,143 @@ const DEFAULT_RENTAL_DAYS = 2; // 🔧 change once, applies everywhere
 
 
 
- const handleBookingConfirmation = async (e) => {
-  e.preventDefault();
+  const handleBookingConfirmation = async (e) => {
+    e.preventDefault();
 
-  try {
-    // 🔴 STEP 0: Reuse SAME validation logic (VERY IMPORTANT)
-    const allQuantitiesAvailable = products.every(product => {
-      return (
-        product.availableQuantity !== null &&
-        parseInt(product.quantity, 10) <= product.availableQuantity
-      );
-    });
+    try {
+      // 🔴 STEP 0: Reuse SAME validation logic (VERY IMPORTANT)
+      const allQuantitiesAvailable = products.every(product => {
+        return (
+          product.availableQuantity !== null &&
+          parseInt(product.quantity, 10) <= product.availableQuantity
+        );
+      });
 
-    if (!allQuantitiesAvailable) {
-      toast.error(
-        "Entered quantities exceed available quantities for one or more products."
-      );
-      return; // ⛔ STOP here
-    }
-
-    let bookingDetails = [];
-
-    for (const product of products) {
-      const pickupDateObj = new Date(product.pickupDate);
-      const returnDateObj = new Date(product.returnDate);
-      const millisecondsPerDay = 1000 * 60 * 60 * 24;
-      const days = Math.ceil(
-        (returnDateObj - pickupDateObj) / millisecondsPerDay
-      );
-
-      const branchCode = userData.branchCode;
-
-      const productRef = doc(
-        db,
-        `products/${branchCode}/products`,
-        product.productCode
-      );
-      const productDoc = await getDoc(productRef);
-
-      if (!productDoc.exists()) {
-        toast.error(`Product ${product.productCode} not found`);
-        return;
+      if (!allQuantitiesAvailable) {
+        toast.error(
+          "Entered quantities exceed available quantities for one or more products."
+        );
+        return; // ⛔ STOP here
       }
 
-      const productData = productDoc.data();
-      const {
-        price,
-        deposit,
-        priceType,
-        minimumRentalPeriod,
-        extraRent,
-        productName
-      } = productData;
+      let bookingDetails = [];
 
-      const calculateTotalPrice = (
-        price,
-        deposit,
-        priceType,
-        quantity,
-        pickupDate,
-        returnDate,
-        minimumRentalPeriod,
-        extraRent
-      ) => {
-        const millisecondsPerHour = 1000 * 60 * 60;
+      for (const product of products) {
+        const pickupDateObj = new Date(product.pickupDate);
+        const returnDateObj = new Date(product.returnDate);
+        const millisecondsPerDay = 1000 * 60 * 60 * 24;
+        const days = Math.ceil(
+          (returnDateObj - pickupDateObj) / millisecondsPerDay
+        );
 
-        let duration = 0;
+        const branchCode = userData.branchCode;
 
-        if (priceType === "hourly") {
-          duration = Math.ceil(
-            (returnDate - pickupDate) / millisecondsPerHour
-          );
-        } else if (priceType === "monthly") {
-          duration = Math.ceil(
-            (returnDate - pickupDate) / (millisecondsPerDay * 30)
-          );
-        } else {
-          duration = Math.ceil(
-            (returnDate - pickupDate) / millisecondsPerDay
-          );
+        const productRef = doc(
+          db,
+          `products/${branchCode}/products`,
+          product.productCode
+        );
+        const productDoc = await getDoc(productRef);
+
+        if (!productDoc.exists()) {
+          toast.error(`Product ${product.productCode} not found`);
+          return;
         }
 
-        let totalPrice = price * quantity;
+        const productData = productDoc.data();
+        const {
+          price,
+          deposit,
+          priceType,
+          minimumRentalPeriod,
+          extraRent,
+          productName
+        } = productData;
 
-        if (duration > minimumRentalPeriod) {
-          const extraDuration = duration - minimumRentalPeriod;
-          totalPrice += extraRent * extraDuration * quantity;
-        }
+        const calculateTotalPrice = (
+          price,
+          deposit,
+          priceType,
+          quantity,
+          pickupDate,
+          returnDate,
+          minimumRentalPeriod,
+          extraRent
+        ) => {
+          const millisecondsPerHour = 1000 * 60 * 60;
 
-        const totaldeposite = deposit * quantity;
+          let duration = 0;
 
-        return {
-          totalPrice,
-          totaldeposite,
-          grandTotal: parseInt(totalPrice) + parseInt(totaldeposite)
+          if (priceType === "hourly") {
+            duration = Math.ceil(
+              (returnDate - pickupDate) / millisecondsPerHour
+            );
+          } else if (priceType === "monthly") {
+            duration = Math.ceil(
+              (returnDate - pickupDate) / (millisecondsPerDay * 30)
+            );
+          } else {
+            duration = Math.ceil(
+              (returnDate - pickupDate) / millisecondsPerDay
+            );
+          }
+
+          let totalPrice = price * quantity;
+
+          if (duration > minimumRentalPeriod) {
+            const extraDuration = duration - minimumRentalPeriod;
+            totalPrice += extraRent * extraDuration * quantity;
+          }
+
+          const totaldeposite = deposit * quantity;
+
+          return {
+            totalPrice,
+            totaldeposite,
+            grandTotal: parseInt(totalPrice) + parseInt(totaldeposite)
+          };
         };
-      };
 
-      const totalCost = calculateTotalPrice(
-        price,
-        deposit,
-        priceType,
-        parseInt(product.quantity, 10),
-        pickupDateObj,
-        returnDateObj,
-        minimumRentalPeriod,
-        extraRent
-      );
+        const totalCost = calculateTotalPrice(
+          price,
+          deposit,
+          priceType,
+          parseInt(product.quantity, 10),
+          pickupDateObj,
+          returnDateObj,
+          minimumRentalPeriod,
+          extraRent
+        );
 
-      await getNextBookingId(pickupDateObj, product.productCode);
+        await getNextBookingId(pickupDateObj, product.productCode);
 
-      bookingDetails.push({
-        productCode: product.productCode,
-        productImageUrl: product.imageUrl,
-        productName,
-        price,
-        deposit,
-        quantity: product.quantity,
-        numDays: days,
-        totalPrice: totalCost.totalPrice,
-        totaldeposite: totalCost.totaldeposite,
-        grandTotal: totalCost.grandTotal
+        bookingDetails.push({
+          productCode: product.productCode,
+          productImageUrl: product.imageUrl,
+          productName,
+          price,
+          deposit,
+          quantity: product.quantity,
+          numDays: days,
+          totalPrice: totalCost.totalPrice,
+          totaldeposite: totalCost.totaldeposite,
+          grandTotal: totalCost.grandTotal
+        });
+      }
+
+      // ✅ STEP 3: Create receipt FIRST
+      setReceipt({
+        products: bookingDetails
       });
+
+      // ✅ STEP 4: THEN move to Review step
+      setWizardStep(3);
+
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred while confirming your booking.");
     }
-
-    // ✅ STEP 3: Create receipt FIRST
-    setReceipt({
-      products: bookingDetails
-    });
-
-    // ✅ STEP 4: THEN move to Review step
-    setWizardStep(3);
-
-  } catch (error) {
-    console.error(error);
-    toast.error("An error occurred while confirming your booking.");
-  }
-};
+  };
 
 
 
@@ -945,26 +946,26 @@ const DEFAULT_RENTAL_DAYS = 2; // 🔧 change once, applies everywhere
     setIsAvailabilityFormVisible(!isAvailabilityFormVisible);
   };
 
-const toggleAvailability1Form = (fromWizard = false) => {
-  const allQuantitiesAvailable = products.every(product => {
-    return parseInt(product.quantity, 10) <= (product.availableQuantity || 0);
-  });
+  const toggleAvailability1Form = (fromWizard = false) => {
+    const allQuantitiesAvailable = products.every(product => {
+      return parseInt(product.quantity, 10) <= (product.availableQuantity || 0);
+    });
 
-  if (!allQuantitiesAvailable) {
-    toast.error(
-      'Entered quantities exceed available quantities for one or more products.'
-    );
-    return false;
-  }
+    if (!allQuantitiesAvailable) {
+      toast.error(
+        'Entered quantities exceed available quantities for one or more products.'
+      );
+      return false;
+    }
 
-  if (fromWizard) {
-    setWizardStep(2); // 👉 wizard navigation
-  } else {
-    setIsAvailability1FormVisible(!isAvailability1FormVisible);
-  }
+    if (fromWizard) {
+      setWizardStep(2); // 👉 wizard navigation
+    } else {
+      setIsAvailability1FormVisible(!isAvailability1FormVisible);
+    }
 
-  return true;
-};
+    return true;
+  };
 
 
   // const handleDeleteProduct = (index) => {
@@ -1083,754 +1084,760 @@ const toggleAvailability1Form = (fromWizard = false) => {
 
   return (
     <div className="booking-container1">
-  <UserHeader onMenuClick={toggleSidebar} />
+      <UserHeader onMenuClick={toggleSidebar} />
 
-  <div className="issidebar">
-    <UserSidebar isOpen={isSidebarOpen} />
-<div className="wizard-wrapper">
-    {/* ===== WIZARD HEADER ===== */}
-    <div className="wizard-header">
-      <div className={`wizard-step ${wizardStep === 1 ? "active" : ""}`}>
-        1. Products
-      </div>
-      <div className={`wizard-step ${wizardStep === 2 ? "active" : ""}`}>
-        2. Customer
-      </div>
-      <div className={`wizard-step ${wizardStep === 3 ? "active" : ""}`}>
-        3. Review
-      </div>
-      <div className={`wizard-step ${wizardStep === 4 ? "active" : ""}`}>
-        4. Payment
-      </div>
-    </div>
+      <div className="issidebar">
+        <UserSidebar isOpen={isSidebarOpen} />
+        <div className="wizard-wrapper">
+          {/* ===== WIZARD HEADER ===== */}
+          <div className="wizard-header">
+            <div className={`wizard-step ${wizardStep === 1 ? "active" : ""}`}>
+              1. Products
+            </div>
+            <div className={`wizard-step ${wizardStep === 2 ? "active" : ""}`}>
+              2. Customer
+            </div>
+            <div className={`wizard-step ${wizardStep === 3 ? "active" : ""}`}>
+              3. Review
+            </div>
+            <div className={`wizard-step ${wizardStep === 4 ? "active" : ""}`}>
+              4. Payment
+            </div>
+          </div>
 
-    {/* ===== STEP 1 : PRODUCTS ===== */}
-    {wizardStep === 1 && (
-      <section className="wizard-card">
+          {/* ===== STEP 1 : PRODUCTS ===== */}
+          {wizardStep === 1 && (
+            <section className="wizard-card">
 
-        {/* HEADER */}
-        <div className="wizard-title">
-          <h2>Check Product Availability</h2>
-          <p>Add products and verify availability before proceeding</p>
-        </div>
-
-        {/* PRODUCT CARDS */}
-        {products.map((product, index) => (
-          <div key={index} className="product-check premium-card">
-
-            <div className="product-card-grid">
-
-              {/* LEFT FORM */}
-              <div className="product-form-section">
-
-                {/* Dates */}
-                <div className="two-col">
-                  <div className="form-group1">
-                    <label>Pickup Date</label>
-                    <input
-                      type="datetime-local"
-                      name="pickupDate"
-                      value={product.pickupDate}
-                      onChange={(e) =>
-                        handleFirstProductDateChange(e, "pickupDate", index)
-                      }
-                      // min={new Date().toISOString().slice(0, 16)}
-                      disabled={index > 0}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group1">
-                    <label>Return Date</label>
-                    <input
-                      type="datetime-local"
-                      name="returnDate"
-                      value={product.returnDate}
-                      onChange={(e) =>
-                        handleFirstProductDateChange(e, "returnDate", index)
-                      }
-                      // min={new Date().toISOString().slice(0, 16)}
-                      disabled={index > 0}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Product Code */}
-                <div className="form-group1">
-                  <label>Product Code</label>
-                  <input
-                    type="text"
-                    name="productCode"
-                    value={product.productCode}
-                    onChange={(e) => handleProductChange(index, e)}
-                    required
-                  />
-
-                  {productSuggestions.length > 0 && (
-                    <ul className="suggestions-dropdown">
-                      {productSuggestions.map((suggestion, idx) => (
-                        <li
-  key={idx}
-  onClick={() => handleSuggestionClick(index, suggestion)}
->
-  <strong>{suggestion.productCode}</strong> — {suggestion.productName}
-</li>
-
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                {/* Quantity & Name */}
-                <div className="two-col">
-                  <div className="form-group1">
-                    <label>Quantity</label>
-                    <input
-                      type="text"
-                      name="quantity"
-                      value={product.quantity}
-                      onChange={(e) => handleProductChange(index, e)}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group1 span-full">
-                    <label>Product Name</label>
-                    <input value={product.productName} readOnly />
-                  </div>
-                </div>
-
-                {/* Rent & Deposit */}
-                <div className="two-col">
-                  <div className="form-group1">
-                    <label>Rent</label>
-                    <input value={product.price} readOnly />
-                  </div>
-
-                  <div className="form-group1">
-                    <label>Deposit</label>
-                    <input value={product.deposit} readOnly />
-                  </div>
-                </div>
-
-                {/* Availability Info */}
-                <div className="info-row">
-                  <span>Total Quantity: {product.totalQuantity}</span>
-
-                  {product.errorMessage ? (
-                    <span className="error-text">{product.errorMessage}</span>
-                  ) : (
-                    product.availableQuantity !== null && (
-                      <span className="success-text">
-                        Available: {product.availableQuantity}
-                      </span>
-                    )
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="card-actions">
-                  <button
-                    type="button"
-                    className="checkavailability"
-                    onClick={() => checkAvailability(index)}
-                  >
-                    Check Availability
-                  </button>
-
-                  {products.length > 1 && index > 0 && (
-                    <FaTrash
-                      className="cancel-button"
-                      onClick={() => removeProductForm(index)}
-                    />
-                  )}
-                </div>
+              {/* HEADER */}
+              <div className="wizard-title">
+                <h2>Check Product Availability</h2>
+                <p>Add products and verify availability before proceeding</p>
               </div>
 
-              {/* RIGHT IMAGE */}
-              <div className="product-image-section">
-                {product.imageUrl ? (
-                  <div className="product-image-frame">
-                    <img
-                      src={product.imageUrl}
-                      alt={product.productName || "Product"}
-                      className="product-image1"
-                    />
+              {/* PRODUCT CARDS */}
+              {products.map((product, index) => (
+                <div key={index} className="product-check premium-card">
+
+                  <div className="product-card-grid">
+
+                    {/* LEFT FORM */}
+                    <div className="product-form-section">
+
+                      {/* Dates */}
+                      <div className="two-col">
+                        <div className="form-group1">
+                          <label>Pickup Date</label>
+                          <input
+                            type="datetime-local"
+                            name="pickupDate"
+                            value={product.pickupDate}
+                            onChange={(e) =>
+                              handleFirstProductDateChange(e, "pickupDate", index)
+                            }
+                            // min={new Date().toISOString().slice(0, 16)}
+                            disabled={index > 0}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group1">
+                          <label>Return Date</label>
+                          <input
+                            type="datetime-local"
+                            name="returnDate"
+                            value={product.returnDate}
+                            onChange={(e) =>
+                              handleFirstProductDateChange(e, "returnDate", index)
+                            }
+                            // min={new Date().toISOString().slice(0, 16)}
+                            disabled={index > 0}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Product Code */}
+                      <div className="form-group1">
+                        <label>Product Code</label>
+
+                        <input
+                          type="text"
+                          name="productCode"
+                          value={product.productCode}
+                          onChange={(e) => {
+                            setActiveProductIndex(index);
+                            handleProductChange(index, e);
+                          }}
+                          required
+                        />
+
+
+                        {activeProductIndex === index && productSuggestions.length > 0 && (
+
+                          <ul className="suggestions-dropdown">
+                            {productSuggestions.map((suggestion, idx) => (
+                              <li
+                                key={idx}
+                                onClick={() => handleSuggestionClick(index, suggestion)}
+                              >
+                                <strong>{suggestion.productCode}</strong> — {suggestion.productName}
+                              </li>
+
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      {/* Quantity & Name */}
+                      <div className="two-col">
+                        <div className="form-group1">
+                          <label>Quantity</label>
+                          <input
+                            type="text"
+                            name="quantity"
+                            value={product.quantity}
+                            onChange={(e) => handleProductChange(index, e)}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group1 span-full">
+                          <label>Product Name</label>
+                          <input value={product.productName} readOnly />
+                        </div>
+                      </div>
+
+                      {/* Rent & Deposit */}
+                      <div className="two-col">
+                        <div className="form-group1">
+                          <label>Rent</label>
+                          <input value={product.price} readOnly />
+                        </div>
+
+                        <div className="form-group1">
+                          <label>Deposit</label>
+                          <input value={product.deposit} readOnly />
+                        </div>
+                      </div>
+
+                      {/* Availability Info */}
+                      <div className="info-row">
+                        <span>Total Quantity: {product.totalQuantity}</span>
+
+                        {product.errorMessage ? (
+                          <span className="error-text">{product.errorMessage}</span>
+                        ) : (
+                          product.availableQuantity !== null && (
+                            <span className="success-text">
+                              Available: {product.availableQuantity}
+                            </span>
+                          )
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="card-actions">
+                        <button
+                          type="button"
+                          className="checkavailability"
+                          onClick={() => checkAvailability(index)}
+                        >
+                          Check Availability
+                        </button>
+
+                        {products.length > 1 && index > 0 && (
+                          <FaTrash
+                            className="cancel-button"
+                            onClick={() => removeProductForm(index)}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* RIGHT IMAGE */}
+                    <div className="product-image-section">
+                      {product.imageUrl ? (
+                        <div className="product-image-frame">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.productName || "Product"}
+                            className="product-image1"
+                          />
+                        </div>
+                      ) : (
+                        <div className="product-image-placeholder">
+                          No Image
+                        </div>
+                      )}
+                    </div>
+
                   </div>
-                ) : (
-                  <div className="product-image-placeholder">
-                    No Image
+                </div>
+              ))}
+
+              {/* FOOTER */}
+              <div className="wizard-footer">
+                <button
+                  className="secondary-btn"
+                  onClick={addProductForm}
+                >
+                  + Add New Product
+                </button>
+
+                <button
+                  className="primary-btn"
+                  onClick={() => toggleAvailability1Form(true)}
+                >
+                  Continue →
+                </button>
+
+              </div>
+
+            </section>
+          )}
+
+
+
+
+          {/* ===== STEP 2 : CUSTOMER ===== */}
+          {wizardStep === 2 && (
+            <section className="wizard-card">
+
+              {/* TITLE */}
+              <div className="wizard-title">
+                <h2>Customer Details</h2>
+                <p>Enter customer information to proceed</p>
+              </div>
+
+              <form onSubmit={handleBookingConfirmation}>
+                <div className="customer-details-form premium-card">
+
+                  {/* Name & Email */}
+                  <div className="two-col">
+                    <div className="form-group1">
+                      <label>Name</label>
+                      <input
+                        type="text"
+                        value={userDetails.name}
+                        onChange={(e) =>
+                          setUserDetails({ ...userDetails, name: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group1">
+                      <label>Email ID</label>
+                      <input
+                        type="email"
+                        value={userDetails.email}
+                        onChange={(e) =>
+                          setUserDetails({ ...userDetails, email: e.target.value })
+                        }
+                      />
+                    </div>
                   </div>
+
+                  {/* Contact Numbers */}
+                  <div className="two-col">
+                    <div className="form-group1">
+                      <label>Contact Number</label>
+                      <input
+                        type="text"
+                        name="contact"
+                        value={userDetails.contact}
+                        onChange={handleInputChange}
+                        placeholder="Enter 10-digit mobile number"
+                        inputMode="numeric"
+                        maxLength={10}
+                        required
+                      />
+
+                      {availableCredit > 0 && (
+                        <div className="credit-info">
+                          Available Credit: ₹{availableCredit.toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="form-group1">
+                      <label>Alternative Phone Number</label>
+                      <input
+                        type="text"
+                        value={userDetails.alternativecontactno}
+                        onChange={(e) =>
+                          setUserDetails({
+                            ...userDetails,
+                            alternativecontactno: e.target.value
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Identity */}
+                  <div className="two-col">
+                    <div className="form-group1">
+                      <label>Identity Proof</label>
+                      <select
+                        value={userDetails.identityproof}
+                        onChange={(e) =>
+                          setUserDetails({
+                            ...userDetails,
+                            identityproof: e.target.value
+                          })
+                        }
+                      >
+                        <option value="" disabled>Select identity proof</option>
+                        <option value="aadharcard">Aadhaar Card</option>
+                        <option value="pancard">Pan Card</option>
+                        <option value="drivinglicence">Driving Licence</option>
+                        <option value="passport">Passport</option>
+                        <option value="college/officeid">College / Office ID</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group1">
+                      <label>Identity Proof Number</label>
+                      <input
+                        type="text"
+                        value={userDetails.identitynumber}
+                        onChange={(e) =>
+                          setUserDetails({
+                            ...userDetails,
+                            identitynumber: e.target.value
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Source */}
+                  <div className="form-group1">
+                    <label>Source</label>
+                    <select
+                      value={userDetails.source}
+                      onChange={(e) =>
+                        setUserDetails({ ...userDetails, source: e.target.value })
+                      }
+                    >
+                      <option value="" disabled>Select the source</option>
+                      <option value="google">Google</option>
+                      <option value="instagram">Instagram</option>
+                      <option value="facebook">Facebook</option>
+                      <option value="friendsandfamily">Friends And Family</option>
+                      <option value="repeatcustomer">Repeat Customer</option>
+                      <option value="referal">Referral</option>
+                      <option value="walkin">Walk-In</option>
+                    </select>
+                  </div>
+
+                  {/* Staff */}
+                  <div className="two-col">
+                    <div className="form-group1">
+                      <label>Customer By</label>
+                      <select
+                        value={userDetails.customerby}
+                        onChange={(e) =>
+                          setUserDetails({
+                            ...userDetails,
+                            customerby: e.target.value
+                          })
+                        }
+                        required
+                      >
+                        <option value="" disabled>Select customer by</option>
+                        <option value="manager">Manager</option>
+                        {subUsers.map((subuser) => (
+                          <option key={subuser.id} value={subuser.name}>
+                            {subuser.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group1">
+                      <label>Receipt By</label>
+                      <select
+                        value={userDetails.receiptby}
+                        onChange={(e) =>
+                          setUserDetails({
+                            ...userDetails,
+                            receiptby: e.target.value
+                          })
+                        }
+                        required
+                      >
+                        <option value="" disabled>Select receipt by</option>
+                        <option value="manager">Manager</option>
+                        {subUsers.map((subuser) => (
+                          <option key={subuser.id} value={subuser.name}>
+                            {subuser.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Stage */}
+                  <div className="form-group1">
+                    <label>Stage</label>
+                    <select
+                      value={userDetails.stage}
+                      onChange={(e) =>
+                        setUserDetails({ ...userDetails, stage: e.target.value })
+                      }
+                      required
+                    >
+                      <option value="Booking">Booking</option>
+                      <option value="pickup">Pickup</option>
+                    </select>
+                  </div>
+
+                  {/* FOOTER */}
+                  <div className="wizard-footer">
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setWizardStep(1)}
+                    >
+                      ← Back
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="primary-btn"
+                    >
+                      Continue →
+                    </button>
+
+                  </div>
+
+                </div>
+              </form>
+
+            </section>
+          )}
+
+
+
+          {/* ===== STEP 3 : REVIEW ===== */}
+          {wizardStep === 3 && receipt && (
+            <section className="wizard-card receipt-card">
+
+              {/* TITLE */}
+              <div className="wizard-title">
+                <h2>Review & Confirm Products</h2>
+                {receiptNumber && (
+                  <p className="muted">Receipt No: {receiptNumber}</p>
                 )}
               </div>
 
-            </div>
-          </div>
-        ))}
+              <div className="receipt-container premium-card">
 
-        {/* FOOTER */}
-        <div className="wizard-footer">
-          <button
-            className="secondary-btn"
-            onClick={addProductForm}
-          >
-            + Add New Product
-          </button>
+                {/* TABLE HEADER */}
+                <div className="receipt-table-header">
+                  <span>Image</span>
+                  <span>Name</span>
+                  <span>Code</span>
+                  <span>Qty</span>
+                  <span>Rent</span>
+                  <span>Deposit</span>
+                  <span>Total</span>
+                  <span>Deposit Total</span>
+                  <span></span>
+                </div>
 
-          <button
-  className="primary-btn"
-  onClick={() => toggleAvailability1Form(true)}
->
-  Continue →
-</button>
+                {/* PRODUCTS */}
+                {receipt.products.map((product, index) => (
+                  <div key={index} className="receipt-table-row">
+                    <span>
+                      {product.productImageUrl && (
+                        <img src={product.productImageUrl} alt="Product" />
+                      )}
+                    </span>
+                    <span>{product.productName}</span>
+                    <span>{product.productCode}</span>
+                    <span>{product.quantity}</span>
+                    <span>₹{product.price}</span>
+                    <span>₹{product.deposit}</span>
+                    <span>₹{product.totalPrice}</span>
+                    <span>₹{product.totaldeposite}</span>
+                    <span>
+                      <FaTrash
+                        onClick={() =>
+                          handleDeleteProduct(product.productCode)
+                        }
+                        className="delete-icon"
+                      />
+                    </span>
+                  </div>
+                ))}
 
-        </div>
+                {/* ALTERATIONS */}
+                <div className="alterations-box">
+                  <label>Alterations / Notes</label>
+                  <input
+                    type="text"
+                    value={userDetails.alterations}
+                    onChange={(e) =>
+                      setUserDetails({
+                        ...userDetails,
+                        alterations: e.target.value
+                      })
+                    }
+                    placeholder="Any changes or special notes"
+                  />
+                </div>
 
-      </section>
-    )}
+                {/* FOOTER */}
+                <div className="wizard-footer">
+                  <button
+                    className="secondary-btn"
+                    onClick={() => setWizardStep(2)}
+                  >
+                    ← Back
+                  </button>
 
+                  <button
+                    className="primary-btn"
+                    onClick={() => setWizardStep(4)}
+                  >
+                    Proceed to Payment →
+                  </button>
+                </div>
 
-
-
-  {/* ===== STEP 2 : CUSTOMER ===== */}
-{wizardStep === 2 && (
-  <section className="wizard-card">
-
-    {/* TITLE */}
-    <div className="wizard-title">
-      <h2>Customer Details</h2>
-      <p>Enter customer information to proceed</p>
-    </div>
-
-    <form onSubmit={handleBookingConfirmation}>
-      <div className="customer-details-form premium-card">
-
-        {/* Name & Email */}
-        <div className="two-col">
-          <div className="form-group1">
-            <label>Name</label>
-            <input
-              type="text"
-              value={userDetails.name}
-              onChange={(e) =>
-                setUserDetails({ ...userDetails, name: e.target.value })
-              }
-              required
-            />
-          </div>
-
-          <div className="form-group1">
-            <label>Email ID</label>
-            <input
-              type="email"
-              value={userDetails.email}
-              onChange={(e) =>
-                setUserDetails({ ...userDetails, email: e.target.value })
-              }
-            />
-          </div>
-        </div>
-
-        {/* Contact Numbers */}
-        <div className="two-col">
-          <div className="form-group1">
-            <label>Contact Number</label>
-          <input
-  type="text"
-  name="contact"
-  value={userDetails.contact}
-  onChange={handleInputChange}
-  placeholder="Enter 10-digit mobile number"
-  inputMode="numeric"
-  maxLength={10}
-  required
-/>
-
-            {availableCredit > 0 && (
-              <div className="credit-info">
-                Available Credit: ₹{availableCredit.toFixed(2)}
               </div>
-            )}
-          </div>
-
-          <div className="form-group1">
-            <label>Alternative Phone Number</label>
-            <input
-              type="text"
-              value={userDetails.alternativecontactno}
-              onChange={(e) =>
-                setUserDetails({
-                  ...userDetails,
-                  alternativecontactno: e.target.value
-                })
-              }
-            />
-          </div>
-        </div>
-
-        {/* Identity */}
-        <div className="two-col">
-          <div className="form-group1">
-            <label>Identity Proof</label>
-            <select
-              value={userDetails.identityproof}
-              onChange={(e) =>
-                setUserDetails({
-                  ...userDetails,
-                  identityproof: e.target.value
-                })
-              }
-            >
-              <option value="" disabled>Select identity proof</option>
-              <option value="aadharcard">Aadhaar Card</option>
-              <option value="pancard">Pan Card</option>
-              <option value="drivinglicence">Driving Licence</option>
-              <option value="passport">Passport</option>
-              <option value="college/officeid">College / Office ID</option>
-            </select>
-          </div>
-
-          <div className="form-group1">
-            <label>Identity Proof Number</label>
-            <input
-              type="text"
-              value={userDetails.identitynumber}
-              onChange={(e) =>
-                setUserDetails({
-                  ...userDetails,
-                  identitynumber: e.target.value
-                })
-              }
-            />
-          </div>
-        </div>
-
-        {/* Source */}
-        <div className="form-group1">
-          <label>Source</label>
-          <select
-            value={userDetails.source}
-            onChange={(e) =>
-              setUserDetails({ ...userDetails, source: e.target.value })
-            }
-          >
-            <option value="" disabled>Select the source</option>
-            <option value="google">Google</option>
-            <option value="instagram">Instagram</option>
-            <option value="facebook">Facebook</option>
-            <option value="friendsandfamily">Friends And Family</option>
-            <option value="repeatcustomer">Repeat Customer</option>
-            <option value="referal">Referral</option>
-            <option value="walkin">Walk-In</option>
-          </select>
-        </div>
-
-        {/* Staff */}
-        <div className="two-col">
-          <div className="form-group1">
-            <label>Customer By</label>
-            <select
-              value={userDetails.customerby}
-              onChange={(e) =>
-                setUserDetails({
-                  ...userDetails,
-                  customerby: e.target.value
-                })
-              }
-              required
-            >
-              <option value="" disabled>Select customer by</option>
-              <option value="manager">Manager</option>
-              {subUsers.map((subuser) => (
-                <option key={subuser.id} value={subuser.name}>
-                  {subuser.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group1">
-            <label>Receipt By</label>
-            <select
-              value={userDetails.receiptby}
-              onChange={(e) =>
-                setUserDetails({
-                  ...userDetails,
-                  receiptby: e.target.value
-                })
-              }
-              required
-            >
-              <option value="" disabled>Select receipt by</option>
-              <option value="manager">Manager</option>
-              {subUsers.map((subuser) => (
-                <option key={subuser.id} value={subuser.name}>
-                  {subuser.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Stage */}
-        <div className="form-group1">
-          <label>Stage</label>
-          <select
-            value={userDetails.stage}
-            onChange={(e) =>
-              setUserDetails({ ...userDetails, stage: e.target.value })
-            }
-            required
-          >
-            <option value="Booking">Booking</option>
-            <option value="pickup">Pickup</option>
-          </select>
-        </div>
-
-        {/* FOOTER */}
-        <div className="wizard-footer">
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={() => setWizardStep(1)}
-          >
-            ← Back
-          </button>
-
-          <button
-  type="submit"
-  className="primary-btn"
->
-  Continue →
-</button>
-
-        </div>
-
-      </div>
-    </form>
-
-  </section>
-)}
-
-
-
-    {/* ===== STEP 3 : REVIEW ===== */}
-{wizardStep === 3 && receipt && (
-  <section className="wizard-card receipt-card">
-
-    {/* TITLE */}
-    <div className="wizard-title">
-      <h2>Review & Confirm Products</h2>
-      {receiptNumber && (
-        <p className="muted">Receipt No: {receiptNumber}</p>
-      )}
-    </div>
-
-    <div className="receipt-container premium-card">
-
-      {/* TABLE HEADER */}
-      <div className="receipt-table-header">
-        <span>Image</span>
-        <span>Name</span>
-        <span>Code</span>
-        <span>Qty</span>
-        <span>Rent</span>
-        <span>Deposit</span>
-        <span>Total</span>
-        <span>Deposit Total</span>
-        <span></span>
-      </div>
-
-      {/* PRODUCTS */}
-      {receipt.products.map((product, index) => (
-        <div key={index} className="receipt-table-row">
-          <span>
-            {product.productImageUrl && (
-              <img src={product.productImageUrl} alt="Product" />
-            )}
-          </span>
-          <span>{product.productName}</span>
-          <span>{product.productCode}</span>
-          <span>{product.quantity}</span>
-          <span>₹{product.price}</span>
-          <span>₹{product.deposit}</span>
-          <span>₹{product.totalPrice}</span>
-          <span>₹{product.totaldeposite}</span>
-          <span>
-            <FaTrash
-              onClick={() =>
-                handleDeleteProduct(product.productCode)
-              }
-              className="delete-icon"
-            />
-          </span>
-        </div>
-      ))}
-
-      {/* ALTERATIONS */}
-      <div className="alterations-box">
-        <label>Alterations / Notes</label>
-        <input
-          type="text"
-          value={userDetails.alterations}
-          onChange={(e) =>
-            setUserDetails({
-              ...userDetails,
-              alterations: e.target.value
-            })
-          }
-          placeholder="Any changes or special notes"
-        />
-      </div>
-
-      {/* FOOTER */}
-      <div className="wizard-footer">
-        <button
-          className="secondary-btn"
-          onClick={() => setWizardStep(2)}
-        >
-          ← Back
-        </button>
-
-        <button
-          className="primary-btn"
-          onClick={() => setWizardStep(4)}
-        >
-          Proceed to Payment →
-        </button>
-      </div>
-
-    </div>
-  </section>
-)}
-{/* ===== STEP 4 : PAYMENT ===== */}
-{wizardStep === 4 && (
-  <section className="wizard-card">
-
-    {/* TITLE */}
-    <div className="wizard-title">
-      <h2>Payment Details</h2>
-      <p className="muted">Finalize the transaction</p>
-    </div>
-
-    <div className="payment-card premium-card">
-
-      {/* ================= TOTALS ================= */}
-      <div className="four-col">
-        <div className="payment-box">
-          <label>Grand Total Rent</label>
-          <input value={userDetails.grandTotalRent} readOnly />
-        </div>
-
-        <div className="payment-box">
-          <label>Grand Total Deposit</label>
-          <input value={userDetails.grandTotalDeposit} readOnly />
-        </div>
-
-        <div className="payment-box highlight">
-          <label>Final Rent</label>
-          <input value={userDetails.finalrent} readOnly />
-        </div>
-
-        <div className="payment-box highlight">
-          <label>Final Deposit</label>
-          <input value={userDetails.finaldeposite} readOnly />
-        </div>
-      </div>
-
-      {/* ================= DISCOUNTS ================= */}
-      <div className="two-col">
-        <div className="payment-box discount">
-          <label>Discount on Rent</label>
-          <input
-            value={userDetails.discountOnRent}
-            onChange={(e) =>
-              setUserDetails({ ...userDetails, discountOnRent: e.target.value })
-            }
-          />
-        </div>
-
-        <div className="payment-box discount">
-          <label>Discount on Deposit</label>
-          <input
-            value={userDetails.discountOnDeposit}
-            onChange={(e) =>
-              setUserDetails({ ...userDetails, discountOnDeposit: e.target.value })
-            }
-          />
-        </div>
-      </div>
-
-      {/* ================= CREDIT ================= */}
-      <div className="two-col">
-        <div className="payment-box">
-          <label>Available Credit</label>
-          <input
-            value={availableCredit > 0 ? `₹${availableCredit.toFixed(2)}` : "—"}
-            readOnly
-          />
-        </div>
-
-        <div className="payment-box">
-          <label>Applied Credit</label>
-          <input
-            value={appliedCredit > 0 ? `₹${appliedCredit.toFixed(2)}` : "—"}
-            readOnly
-          />
-          {appliedCredit === 0 && availableCredit > 0 && (
-            <button
-              type="button"
-              className="apply-credit-button"
-              onClick={handleApplyCredit}
-            >
-              Apply Credit
-            </button>
+            </section>
           )}
+          {/* ===== STEP 4 : PAYMENT ===== */}
+          {wizardStep === 4 && (
+            <section className="wizard-card">
+
+              {/* TITLE */}
+              <div className="wizard-title">
+                <h2>Payment Details</h2>
+                <p className="muted">Finalize the transaction</p>
+              </div>
+
+              <div className="payment-card premium-card">
+
+                {/* ================= TOTALS ================= */}
+                <div className="four-col">
+                  <div className="payment-box">
+                    <label>Grand Total Rent</label>
+                    <input value={userDetails.grandTotalRent} readOnly />
+                  </div>
+
+                  <div className="payment-box">
+                    <label>Grand Total Deposit</label>
+                    <input value={userDetails.grandTotalDeposit} readOnly />
+                  </div>
+
+                  <div className="payment-box highlight">
+                    <label>Final Rent</label>
+                    <input value={userDetails.finalrent} readOnly />
+                  </div>
+
+                  <div className="payment-box highlight">
+                    <label>Final Deposit</label>
+                    <input value={userDetails.finaldeposite} readOnly />
+                  </div>
+                </div>
+
+                {/* ================= DISCOUNTS ================= */}
+                <div className="two-col">
+                  <div className="payment-box discount">
+                    <label>Discount on Rent</label>
+                    <input
+                      value={userDetails.discountOnRent}
+                      onChange={(e) =>
+                        setUserDetails({ ...userDetails, discountOnRent: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="payment-box discount">
+                    <label>Discount on Deposit</label>
+                    <input
+                      value={userDetails.discountOnDeposit}
+                      onChange={(e) =>
+                        setUserDetails({ ...userDetails, discountOnDeposit: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* ================= CREDIT ================= */}
+                <div className="two-col">
+                  <div className="payment-box">
+                    <label>Available Credit</label>
+                    <input
+                      value={availableCredit > 0 ? `₹${availableCredit.toFixed(2)}` : "—"}
+                      readOnly
+                    />
+                  </div>
+
+                  <div className="payment-box">
+                    <label>Applied Credit</label>
+                    <input
+                      value={appliedCredit > 0 ? `₹${appliedCredit.toFixed(2)}` : "—"}
+                      readOnly
+                    />
+                    {appliedCredit === 0 && availableCredit > 0 && (
+                      <button
+                        type="button"
+                        className="apply-credit-button"
+                        onClick={handleApplyCredit}
+                      >
+                        Apply Credit
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* ================= PAYABLE ================= */}
+                <div className="three-col">
+                  <div className="payment-box">
+                    <label>Total Amount to be Paid</label>
+                    <input value={userDetails.totalamounttobepaid} />
+                  </div>
+
+                  <div className="payment-box success">
+                    <label>Amount Paid / Advance</label>
+                    <input
+                      value={userDetails.amountpaid}
+                      onChange={(e) =>
+                        setUserDetails({ ...userDetails, amountpaid: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="payment-box">
+                    <label>Balance</label>
+                    <input value={userDetails.balance} readOnly />
+                  </div>
+                </div>
+
+                {/* ================= PAYMENT STATUS ================= */}
+                <div className="payment-box">
+                  <label>Payment Status</label>
+                  <select
+                    value={userDetails.paymentstatus}
+                    onChange={(e) =>
+                      setUserDetails({ ...userDetails, paymentstatus: e.target.value })
+                    }
+                  >
+                    <option value="fullpayment">Full Payment</option>
+                    <option value="depositpending">Deposit Pending</option>
+                    <option value="partialpayment">Partial Payment</option>
+                  </select>
+                </div>
+
+                {/* ================= PAYMENT MODES ================= */}
+                <div className="two-col">
+                  <div className="payment-box">
+                    <label>1st Payment Mode</label>
+                    <select
+                      value={userDetails.firstpaymentmode}
+                      onChange={(e) =>
+                        setUserDetails({ ...userDetails, firstpaymentmode: e.target.value })
+                      }
+                    >
+                      <option value="">Select Mode</option>
+                      <option value="upi">UPI</option>
+                      <option value="cash">Cash</option>
+                      <option value="card">Card</option>
+                    </select>
+                  </div>
+
+                  <div className="payment-box">
+                    <label>1st Payment Details</label>
+                    <input
+                      value={userDetails.firstpaymentdtails}
+                      onChange={(e) =>
+                        setUserDetails({
+                          ...userDetails,
+                          firstpaymentdtails: e.target.value
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="two-col">
+                  <div className="payment-box">
+                    <label>2nd Payment Mode (if any)</label>
+                    <select
+                      value={userDetails.secondpaymentmode}
+                      onChange={(e) =>
+                        setUserDetails({
+                          ...userDetails,
+                          secondpaymentmode: e.target.value
+                        })
+                      }
+                    >
+                      <option value="">Select Mode</option>
+                      <option value="upi">UPI</option>
+                      <option value="cash">Cash</option>
+                      <option value="card">Card</option>
+                    </select>
+                  </div>
+
+                  <div className="payment-box">
+                    <label>2nd Payment Details</label>
+                    <input
+                      value={userDetails.secondpaymentdetails}
+                      onChange={(e) =>
+                        setUserDetails({
+                          ...userDetails,
+                          secondpaymentdetails: e.target.value
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* ================= SPECIAL NOTE ================= */}
+                <div className="payment-box">
+                  <label>Special Note / Follow-up Comment</label>
+                  <input
+                    value={userDetails.specialnote}
+                    onChange={(e) =>
+                      setUserDetails({ ...userDetails, specialnote: e.target.value })
+                    }
+                  />
+                </div>
+
+                {/* ================= FINAL ACTION ================= */}
+                <div className="wizard-footer">
+                  <button
+                    className="secondary-btn"
+                    onClick={() => setWizardStep(3)}
+                  >
+                    ← Back
+                  </button>
+
+                  <button
+                    className="primary-btn success"
+                    onClick={handleConfirmPayment}
+                    disabled={isButtonDisabled}
+                  >
+                    {isButtonDisabled ? "Processing..." : "Confirm Payment"}
+                  </button>
+                </div>
+
+              </div>
+            </section>
+          )}
+
+
+
+
         </div>
+        <ToastContainer />
       </div>
-
-      {/* ================= PAYABLE ================= */}
-      <div className="three-col">
-        <div className="payment-box">
-          <label>Total Amount to be Paid</label>
-          <input value={userDetails.totalamounttobepaid} />
-        </div>
-
-        <div className="payment-box success">
-          <label>Amount Paid / Advance</label>
-          <input
-            value={userDetails.amountpaid}
-            onChange={(e) =>
-              setUserDetails({ ...userDetails, amountpaid: e.target.value })
-            }
-          />
-        </div>
-
-        <div className="payment-box">
-          <label>Balance</label>
-          <input value={userDetails.balance} readOnly />
-        </div>
-      </div>
-
-      {/* ================= PAYMENT STATUS ================= */}
-      <div className="payment-box">
-        <label>Payment Status</label>
-        <select
-          value={userDetails.paymentstatus}
-          onChange={(e) =>
-            setUserDetails({ ...userDetails, paymentstatus: e.target.value })
-          }
-        >
-          <option value="fullpayment">Full Payment</option>
-          <option value="depositpending">Deposit Pending</option>
-          <option value="partialpayment">Partial Payment</option>
-        </select>
-      </div>
-
-      {/* ================= PAYMENT MODES ================= */}
-      <div className="two-col">
-        <div className="payment-box">
-          <label>1st Payment Mode</label>
-          <select
-            value={userDetails.firstpaymentmode}
-            onChange={(e) =>
-              setUserDetails({ ...userDetails, firstpaymentmode: e.target.value })
-            }
-          >
-            <option value="">Select Mode</option>
-            <option value="upi">UPI</option>
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
-          </select>
-        </div>
-
-        <div className="payment-box">
-          <label>1st Payment Details</label>
-          <input
-            value={userDetails.firstpaymentdtails}
-            onChange={(e) =>
-              setUserDetails({
-                ...userDetails,
-                firstpaymentdtails: e.target.value
-              })
-            }
-          />
-        </div>
-      </div>
-
-      <div className="two-col">
-        <div className="payment-box">
-          <label>2nd Payment Mode (if any)</label>
-          <select
-            value={userDetails.secondpaymentmode}
-            onChange={(e) =>
-              setUserDetails({
-                ...userDetails,
-                secondpaymentmode: e.target.value
-              })
-            }
-          >
-            <option value="">Select Mode</option>
-            <option value="upi">UPI</option>
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
-          </select>
-        </div>
-
-        <div className="payment-box">
-          <label>2nd Payment Details</label>
-          <input
-            value={userDetails.secondpaymentdetails}
-            onChange={(e) =>
-              setUserDetails({
-                ...userDetails,
-                secondpaymentdetails: e.target.value
-              })
-            }
-          />
-        </div>
-      </div>
-
-      {/* ================= SPECIAL NOTE ================= */}
-      <div className="payment-box">
-        <label>Special Note / Follow-up Comment</label>
-        <input
-          value={userDetails.specialnote}
-          onChange={(e) =>
-            setUserDetails({ ...userDetails, specialnote: e.target.value })
-          }
-        />
-      </div>
-
-      {/* ================= FINAL ACTION ================= */}
-      <div className="wizard-footer">
-        <button
-          className="secondary-btn"
-          onClick={() => setWizardStep(3)}
-        >
-          ← Back
-        </button>
-
-        <button
-          className="primary-btn success"
-          onClick={handleConfirmPayment}
-          disabled={isButtonDisabled}
-        >
-          {isButtonDisabled ? "Processing..." : "Confirm Payment"}
-        </button>
-      </div>
-
-    </div>
-  </section>
-)}
-
-
-
-
-      </div>
-      <ToastContainer />
-</div>
     </div>
   );
 }

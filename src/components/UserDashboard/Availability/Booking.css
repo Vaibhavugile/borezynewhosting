@@ -282,6 +282,17 @@ input[readonly] {
   color: #dc2626;
   font-weight: 600;
 }
+.availability {
+  font-weight: 600;
+}
+
+.availability.available {
+  color: #16a34a; /* green */
+}
+
+.availability.unavailable {
+  color: #dc2626; /* red */
+}
 
 /* ===============================
    BUTTONS

@@ -1223,18 +1223,26 @@ function Booking() {
 
                       {/* Availability Info */}
                       <div className="info-row">
-                        <span>Total Quantity: {product.totalQuantity}</span>
+  <span>Total Quantity: {product.totalQuantity}</span>
 
-                        {product.errorMessage ? (
-                          <span className="error-text">{product.errorMessage}</span>
-                        ) : (
-                          product.availableQuantity !== null && (
-                            <span className="success-text">
-                              Available: {product.availableQuantity}
-                            </span>
-                          )
-                        )}
-                      </div>
+  {product.errorMessage ? (
+    <span className="error-text">{product.errorMessage}</span>
+  ) : (
+    product.availableQuantity !== null && (
+      <span
+        className={
+          product.availableQuantity > 0
+            ? "availability available"
+            : "availability unavailable"
+        }
+      >
+        Available: {product.availableQuantity}
+      </span>
+    )
+  )}
+</div>
+
+                      
 
                       {/* Actions */}
                       <div className="card-actions">

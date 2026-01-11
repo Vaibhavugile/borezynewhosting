@@ -94,13 +94,13 @@ const flattenBooking = (booking) => ({
   contactNo: booking.contactNo,
   email: booking.email,
   pickupDate: booking.pickupDate
-    ? booking.pickupDate.toLocaleDateString()
+    ? booking.pickupDate.toLocaleDateString('en-GB')
     : "",
   returnDate: booking.returnDate
-    ? booking.returnDate.toLocaleDateString()
+    ? booking.returnDate.toLocaleDateString('en-GB')
     : "",
   createdAt: booking.createdAt?.toDate
-  ? booking.createdAt.toDate().toLocaleString('en-IN', {
+    ? booking.createdAt.toDate().toLocaleString('en-IN', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
@@ -109,7 +109,7 @@ const flattenBooking = (booking) => ({
       second: '2-digit',
       hour12: true,
     })
-  : "",
+    : "",
 
   stage: booking.stage,
   products: booking.products
@@ -153,7 +153,7 @@ const BookingDashboard = () => {
 
   const [searchField, setSearchField] = useState('');
   const [importedData, setImportedData] = useState(null);
-const [viewMode, setViewMode] = useState('compact'); // 'compact' | 'comfortable'
+  const [viewMode, setViewMode] = useState('compact'); // 'compact' | 'comfortable'
 
   const navigate = useNavigate();
   const [stageFilter, setStageFilter] = useState('all'); // New state for filtering by stage
@@ -163,51 +163,58 @@ const [viewMode, setViewMode] = useState('compact'); // 'compact' | 'comfortable
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [selectedContactNo, setSelectedContactNo] = useState(null);
-// ================= FIELD VISIBILITY =================
-const [visibleFields, setVisibleFields] = useState({});
-const [showFieldDropdown, setShowFieldDropdown] = useState(false);
-const [tempVisibleFields, setTempVisibleFields] = useState({});
-const [savingFields, setSavingFields] = useState(false);
-
-useEffect(() => {
-  if (!userData?.branchCode) return;
-
-  const loadFieldSettings = async () => {
-    try {
-      const ref = doc(db, "branches", userData.branchCode);
-      const snap = await getDoc(ref);
-
-      if (snap.exists() && snap.data().bookingFieldSettings?.visibleFields) {
-        setVisibleFields(snap.data().bookingFieldSettings.visibleFields);
-      } else {
-        // First-time default
-        const defaults = {};
-        EXPORT_FIELDS.forEach((field) => {
-          defaults[field] = !DEFAULT_HIDDEN_FIELDS.includes(field);
-        });
-
-        setVisibleFields(defaults);
-
-        await setDoc(
-          ref,
-          {
-            bookingFieldSettings: {
-              visibleFields: defaults,
-              createdAt: serverTimestamp(),
-              createdBy: userData?.email || "system",
-            },
-          },
-          { merge: true }
-        );
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load field settings");
-    }
+  // ================= FIELD VISIBILITY =================
+  const [visibleFields, setVisibleFields] = useState({});
+  const [showFieldDropdown, setShowFieldDropdown] = useState(false);
+  const [tempVisibleFields, setTempVisibleFields] = useState({});
+  const [savingFields, setSavingFields] = useState(false);
+  const formatDateYYYYMMDD = (date) => {
+    if (!date) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   };
 
-  loadFieldSettings();
-}, [userData?.branchCode]);
+  useEffect(() => {
+    if (!userData?.branchCode) return;
+
+    const loadFieldSettings = async () => {
+      try {
+        const ref = doc(db, "branches", userData.branchCode);
+        const snap = await getDoc(ref);
+
+        if (snap.exists() && snap.data().bookingFieldSettings?.visibleFields) {
+          setVisibleFields(snap.data().bookingFieldSettings.visibleFields);
+        } else {
+          // First-time default
+          const defaults = {};
+          EXPORT_FIELDS.forEach((field) => {
+            defaults[field] = !DEFAULT_HIDDEN_FIELDS.includes(field);
+          });
+
+          setVisibleFields(defaults);
+
+          await setDoc(
+            ref,
+            {
+              bookingFieldSettings: {
+                visibleFields: defaults,
+                createdAt: serverTimestamp(),
+                createdBy: userData?.email || "system",
+              },
+            },
+            { merge: true }
+          );
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load field settings");
+      }
+    };
+
+    loadFieldSettings();
+  }, [userData?.branchCode]);
 
 
 
@@ -217,195 +224,195 @@ useEffect(() => {
   };
 
   useEffect(() => {
-  const fetchAllBookingsWithUserDetails = async () => {
-    setLoading(true);
-    try {
-      const productsRef = collection(
-        db,
-        `products/${userData.branchCode}/products`
-      );
-      const productsSnapshot = await getDocs(productsRef);
+    const fetchAllBookingsWithUserDetails = async () => {
+      setLoading(true);
+      try {
+        const productsRef = collection(
+          db,
+          `products/${userData.branchCode}/products`
+        );
+        const productsSnapshot = await getDocs(productsRef);
 
-      const allBookingsPromises = productsSnapshot.docs.map(async (productDoc) => {
-        const productCode = productDoc.data().productCode;
-        const productName = productDoc.data().productName || "N/A";
+        const allBookingsPromises = productsSnapshot.docs.map(async (productDoc) => {
+          const productCode = productDoc.data().productCode;
+          const productName = productDoc.data().productName || "N/A";
 
-        const bookingsRef = collection(productDoc.ref, "bookings");
-        const bookingsQuery = query(bookingsRef, orderBy("pickupDate", "asc"));
-        const bookingsSnapshot = await getDocs(bookingsQuery);
+          const bookingsRef = collection(productDoc.ref, "bookings");
+          const bookingsQuery = query(bookingsRef, orderBy("pickupDate", "asc"));
+          const bookingsSnapshot = await getDocs(bookingsQuery);
 
-        return bookingsSnapshot.docs.map((docSnapshot) => {
-          const bookingData = docSnapshot.data();
-          const {
-            bookingId,
-            receiptNumber,
-            pickupDate,
-            returnDate,
-            quantity,
-            userDetails,
-            createdAt,
-          } = bookingData;
+          return bookingsSnapshot.docs.map((docSnapshot) => {
+            const bookingData = docSnapshot.data();
+            const {
+              bookingId,
+              receiptNumber,
+              pickupDate,
+              returnDate,
+              quantity,
+              userDetails,
+              createdAt,
+            } = bookingData;
 
-          return {
-            bookingId,
-            receiptNumber,
-            clientname: userDetails.name,
-            contactNo: userDetails.contact,
-            email: userDetails.email,
-            pickupDate: pickupDate?.toDate
-              ? pickupDate.toDate()
-              : pickupDate
-              ? new Date(pickupDate)
-              : null,
-            returnDate: returnDate?.toDate
-              ? returnDate.toDate()
-              : returnDate
-              ? new Date(returnDate)
-              : null,
-            createdAt: createdAt || null,
-            stage: userDetails.stage,
-            products: [
-              {
-                productCode,
-                productName,
-                quantity: parseInt(quantity, 10),
-              },
-            ],
-            IdentityProof: userDetails.identityproof || "N/A",
-            IdentityNumber: userDetails.identitynumber || "N/A",
-            Source: userDetails.source || "N/A",
-            CustomerBy: userDetails.customerby || "N/A",
-            ReceiptBy: userDetails.receiptby || "N/A",
-            Alterations: userDetails.alterations || "N/A",
-            SpecialNote: userDetails.specialnote || "N/A",
-            GrandTotalRent: userDetails.grandTotalRent || "N/A",
-            DiscountOnRent: userDetails.discountOnRent || "N/A",
-            FinalRent: userDetails.finalrent || "N/A",
-            GrandTotalDeposit: userDetails.grandTotalDeposit || "N/A",
-            DiscountOnDeposit: userDetails.discountOnDeposit || "N/A",
-            FinalDeposit: userDetails.finaldeposite || "N/A",
-            AmountToBePaid: userDetails.totalamounttobepaid || "N/A",
-            AmountPaid: userDetails.amountpaid || "N/A",
-            Balance: userDetails.balance || "N/A",
-            PaymentStatus: userDetails.paymentstatus || "N/A",
-            FirstPaymentDetails: userDetails.firstpaymentdtails || "N/A",
-            FirstPaymentMode: userDetails.firstpaymentmode || "N/A",
-            SecondPaymentMode: userDetails.secondpaymentmode || "N/A",
-            SecondPaymentDetails: userDetails.secondpaymentdetails || "N/A",
-          };
-        });
-      });
-
-      const allBookings = (await Promise.all(allBookingsPromises)).flat();
-
-      // group by receiptNumber
-      const groupedBookings = allBookings.reduce((acc, booking) => {
-        if (!acc[booking.receiptNumber]) {
-          acc[booking.receiptNumber] = { ...booking, products: [...booking.products] };
-        } else {
-          booking.products.forEach((p) => {
-            const existing = acc[booking.receiptNumber].products.find(
-              (x) => x.productCode === p.productCode
-            );
-            if (existing) existing.quantity += p.quantity;
-            else acc[booking.receiptNumber].products.push(p);
+            return {
+              bookingId,
+              receiptNumber,
+              clientname: userDetails.name,
+              contactNo: userDetails.contact,
+              email: userDetails.email,
+              pickupDate: pickupDate?.toDate
+                ? pickupDate.toDate()
+                : pickupDate
+                  ? new Date(pickupDate)
+                  : null,
+              returnDate: returnDate?.toDate
+                ? returnDate.toDate()
+                : returnDate
+                  ? new Date(returnDate)
+                  : null,
+              createdAt: createdAt || null,
+              stage: userDetails.stage,
+              products: [
+                {
+                  productCode,
+                  productName,
+                  quantity: parseInt(quantity, 10),
+                },
+              ],
+              IdentityProof: userDetails.identityproof || "N/A",
+              IdentityNumber: userDetails.identitynumber || "N/A",
+              Source: userDetails.source || "N/A",
+              CustomerBy: userDetails.customerby || "N/A",
+              ReceiptBy: userDetails.receiptby || "N/A",
+              Alterations: userDetails.alterations || "N/A",
+              SpecialNote: userDetails.specialnote || "N/A",
+              GrandTotalRent: userDetails.grandTotalRent || "N/A",
+              DiscountOnRent: userDetails.discountOnRent || "N/A",
+              FinalRent: userDetails.finalrent || "N/A",
+              GrandTotalDeposit: userDetails.grandTotalDeposit || "N/A",
+              DiscountOnDeposit: userDetails.discountOnDeposit || "N/A",
+              FinalDeposit: userDetails.finaldeposite || "N/A",
+              AmountToBePaid: userDetails.totalamounttobepaid || "N/A",
+              AmountPaid: userDetails.amountpaid || "N/A",
+              Balance: userDetails.balance || "N/A",
+              PaymentStatus: userDetails.paymentstatus || "N/A",
+              FirstPaymentDetails: userDetails.firstpaymentdtails || "N/A",
+              FirstPaymentMode: userDetails.firstpaymentmode || "N/A",
+              SecondPaymentMode: userDetails.secondpaymentmode || "N/A",
+              SecondPaymentDetails: userDetails.secondpaymentdetails || "N/A",
+            };
           });
-        }
-        return acc;
-      }, {});
-
-      const bookingsArray = Object.values(groupedBookings).sort((a, b) => {
-        const dA = a.createdAt?.toDate ? a.createdAt.toDate() : a.createdAt || 0;
-        const dB = b.createdAt?.toDate ? b.createdAt.toDate() : b.createdAt || 0;
-        return dB - dA;
-      });
-
-      setBookings(bookingsArray);
-    } catch (error) {
-      toast.error("Error fetching bookings");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (userData?.branchCode) {
-    fetchAllBookingsWithUserDetails();
-  }
-}, [userData?.branchCode]);
-useEffect(() => {
-  if (!bookings.length || !userData?.branchCode) return;
-
-  const syncStagesInBackground = async () => {
-    try {
-      const batch = writeBatch(db);
-      const today = new Date();
-      let hasUpdates = false;
-
-      bookings.forEach((booking) => {
-        booking.products.forEach((product) => {
-          const bookingRef = doc(
-            db,
-            `products/${userData.branchCode}/products/${product.productCode}/bookings/${booking.bookingId}`
-          );
-
-          const pickupDate = booking.pickupDate;
-          const returnDate = booking.returnDate;
-          const stage = booking.stage;
-
-          // Booking → Pickup Pending
-          if (
-            pickupDate &&
-            pickupDate.toDateString() === today.toDateString() &&
-            stage === "Booking"
-          ) {
-            batch.update(bookingRef, {
-              "userDetails.stage": "pickupPending",
-            });
-            hasUpdates = true;
-          }
-
-          // Pickup → Return Pending
-          if (
-            returnDate &&
-            returnDate.toDateString() === today.toDateString() &&
-            stage === "pickup"
-          ) {
-            batch.update(bookingRef, {
-              "userDetails.stage": "returnPending",
-            });
-            hasUpdates = true;
-          }
-
-          // Normalize returnDate if needed
-          if (
-            ["return", "cancelled", "successful", "postponed"].includes(stage) &&
-            returnDate &&
-            returnDate.getTime() > today.getTime()
-          ) {
-            batch.update(bookingRef, {
-              returnDate: today,
-            });
-            hasUpdates = true;
-          }
         });
-      });
 
-      if (!hasUpdates) return;
+        const allBookings = (await Promise.all(allBookingsPromises)).flat();
 
-      await batch.commit();
-      console.log("✅ Background stage sync completed");
-    } catch (error) {
-      console.error("❌ Background stage sync failed", error);
+        // group by receiptNumber
+        const groupedBookings = allBookings.reduce((acc, booking) => {
+          if (!acc[booking.receiptNumber]) {
+            acc[booking.receiptNumber] = { ...booking, products: [...booking.products] };
+          } else {
+            booking.products.forEach((p) => {
+              const existing = acc[booking.receiptNumber].products.find(
+                (x) => x.productCode === p.productCode
+              );
+              if (existing) existing.quantity += p.quantity;
+              else acc[booking.receiptNumber].products.push(p);
+            });
+          }
+          return acc;
+        }, {});
+
+        const bookingsArray = Object.values(groupedBookings).sort((a, b) => {
+          const dA = a.createdAt?.toDate ? a.createdAt.toDate() : a.createdAt || 0;
+          const dB = b.createdAt?.toDate ? b.createdAt.toDate() : b.createdAt || 0;
+          return dB - dA;
+        });
+
+        setBookings(bookingsArray);
+      } catch (error) {
+        toast.error("Error fetching bookings");
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userData?.branchCode) {
+      fetchAllBookingsWithUserDetails();
     }
-  };
+  }, [userData?.branchCode]);
+  useEffect(() => {
+    if (!bookings.length || !userData?.branchCode) return;
 
-  // 🚀 Run after UI is painted
-  setTimeout(syncStagesInBackground, 0);
-}, [bookings, userData?.branchCode]);
+    const syncStagesInBackground = async () => {
+      try {
+        const batch = writeBatch(db);
+        const today = new Date();
+        let hasUpdates = false;
+
+        bookings.forEach((booking) => {
+          booking.products.forEach((product) => {
+            const bookingRef = doc(
+              db,
+              `products/${userData.branchCode}/products/${product.productCode}/bookings/${booking.bookingId}`
+            );
+
+            const pickupDate = booking.pickupDate;
+            const returnDate = booking.returnDate;
+            const stage = booking.stage;
+
+            // Booking → Pickup Pending
+            if (
+              pickupDate &&
+              pickupDate.toDateString() === today.toDateString() &&
+              stage === "Booking"
+            ) {
+              batch.update(bookingRef, {
+                "userDetails.stage": "pickupPending",
+              });
+              hasUpdates = true;
+            }
+
+            // Pickup → Return Pending
+            if (
+              returnDate &&
+              returnDate.toDateString() === today.toDateString() &&
+              stage === "pickup"
+            ) {
+              batch.update(bookingRef, {
+                "userDetails.stage": "returnPending",
+              });
+              hasUpdates = true;
+            }
+
+            // Normalize returnDate if needed
+            if (
+              ["return", "cancelled", "successful", "postponed"].includes(stage) &&
+              returnDate &&
+              returnDate.getTime() > today.getTime()
+            ) {
+              batch.update(bookingRef, {
+                returnDate: today,
+              });
+              hasUpdates = true;
+            }
+          });
+        });
+
+        if (!hasUpdates) return;
+
+        await batch.commit();
+        console.log("✅ Background stage sync completed");
+      } catch (error) {
+        console.error("❌ Background stage sync failed", error);
+      }
+    };
+
+    // 🚀 Run after UI is painted
+    setTimeout(syncStagesInBackground, 0);
+  }, [bookings, userData?.branchCode]);
 
 
- const handleDelete = async (receiptNumber) => {
+  const handleDelete = async (receiptNumber) => {
     const confirmed = window.confirm("Are you sure you want to delete this booking?");
     if (!confirmed) return;
     try {
@@ -456,7 +463,7 @@ useEffect(() => {
         });
 
         toast.success('Booking deleted successfully');
-         window.location.reload();
+        window.location.reload();
       } else {
 
         toast.error('No booking found with the specified receipt number.');
@@ -500,8 +507,12 @@ useEffect(() => {
         } else if (searchField === 'receiptNumber') {
           return booking.receiptNumber && String(booking.receiptNumber).toLowerCase().includes(lowerCaseQuery);
         } else if (searchField === 'createdAt') {
-          return (booking.createdAt && booking.createdAt.toDate().toLocaleString().toLowerCase().includes(lowerCaseQuery));
-        } else if (searchField === 'clientname') {
+          return (
+            booking.createdAt &&
+            formatDateYYYYMMDD(booking.createdAt.toDate()) === searchQuery
+          );
+        }
+        else if (searchField === 'clientname') {
           return booking.clientname && booking.clientname.toLowerCase().includes(lowerCaseQuery);
         }
         else if (searchField === 'emailId') {
@@ -509,9 +520,20 @@ useEffect(() => {
         } else if (searchField === 'contactNo') {
           return booking.contactNo && String(booking.contactNo).toLowerCase().includes(lowerCaseQuery);
         } else if (searchField === 'pickupDate') {
-          return (booking.pickupDate && new Date(booking.pickupDate).toLocaleDateString().toLowerCase().includes(lowerCaseQuery));
+          return (
+            booking.pickupDate &&
+            formatDateYYYYMMDD(booking.pickupDate) === searchQuery
+
+
+          );
         } else if (searchField === 'returnDate') {
-          return booking.returnDate && new Date(booking.returnDate).toLocaleDateString().toLowerCase().includes(lowerCaseQuery);
+          return (
+            booking.returnDate &&
+            formatDateYYYYMMDD(booking.returnDate) === searchQuery
+
+
+          );
+
         } else if (searchField === 'productCode') {
           return booking.products && booking.products.some(product =>
             String(product.productCode).toLowerCase().includes(lowerCaseQuery)
@@ -521,12 +543,12 @@ useEffect(() => {
           return (
             (booking.bookingId && String(booking.bookingId).toLowerCase().includes(lowerCaseQuery)) ||
             (booking.receiptNumber && String(booking.receiptNumber).toLowerCase().includes(lowerCaseQuery)) ||
-            (booking.createdAt && (booking.createdAt).toDate().toLocaleDateString().toLowerCase().includes(lowerCaseQuery)) ||
+            (booking.createdAt && (booking.createdAt).toDate().toLocaleDateString('en-GB').toLowerCase().includes(lowerCaseQuery)) ||
             (booking.clientname && booking.clientname.toLowerCase().includes(lowerCaseQuery)) ||
             (booking.contactNo && String(booking.contactNo).toLowerCase().includes(lowerCaseQuery)) ||
             (booking.email && booking.email.toLowerCase().includes(lowerCaseQuery)) ||
-            (booking.pickupDate && new Date(booking.pickupDate).toLocaleDateString().toLowerCase().includes(lowerCaseQuery)) ||
-            (booking.returnDate && new Date(booking.returnDate).toLocaleDateString().toLowerCase().includes(lowerCaseQuery)) ||
+            (booking.pickupDate && new Date(booking.pickupDate).toLocaleDateString('en-GB').toLowerCase().includes(lowerCaseQuery)) ||
+            (booking.returnDate && new Date(booking.returnDate).toLocaleDateString('en-GB').toLowerCase().includes(lowerCaseQuery)) ||
             (booking.price && String(booking.price).toLowerCase().includes(lowerCaseQuery)) ||
             (booking.deposit && String(booking.deposit).toLowerCase().includes(lowerCaseQuery)) ||
             (booking.minimumRentalPeriod && String(booking.minimumRentalPeriod).toLowerCase().includes(lowerCaseQuery)) ||
@@ -561,15 +583,15 @@ useEffect(() => {
 
       // Check if `createdAt` exists and is a Timestamp
       const createdAtDate = booking.createdAt && booking.createdAt.toDate
-        ?booking.createdAt.toDate().toLocaleString('en-IN', {
-  day: '2-digit',
-  month: 'long',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: true,
-})
+        ? booking.createdAt.toDate().toLocaleString('en-IN', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+        })
 
         : 'N/A'; // Use 'N/A' or another placeholder if `createdAt` is missing
 
@@ -644,76 +666,76 @@ useEffect(() => {
   });
 
 
-const handleStageChange = async (receiptNumber, newStage) => {
-  try {
-    const bookingToUpdate = finalFilteredBookings.find(
-      (booking) => booking.receiptNumber === receiptNumber
-    );
-
-    if (!bookingToUpdate) {
-      toast.error('Booking not found');
-      return;
-    }
-
-    const bookingId = String(bookingToUpdate.bookingId);
-    const products = bookingToUpdate.products;
-
-    for (const product of products) {
-      const productCode = product.productCode;
-
-      const bookingsRef = collection(
-        db,
-        `products/${userData.branchCode}/products/${productCode}/bookings`
+  const handleStageChange = async (receiptNumber, newStage) => {
+    try {
+      const bookingToUpdate = finalFilteredBookings.find(
+        (booking) => booking.receiptNumber === receiptNumber
       );
 
-      const q = query(bookingsRef, where("receiptNumber", "==", receiptNumber));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        toast.error(`No documents found for bookingId: ${bookingId} in product: ${productCode}`);
-
-        const bookingDocRef = doc(bookingsRef, bookingId);
-        await setDoc(bookingDocRef, {
-          userDetails: {
-            stage: newStage,
-            ...(newStage === "successful" && { stageUpdatedAt: serverTimestamp() }),
-          },
-          // Add other relevant fields if needed
-        });
-
-        toast.success(`Document created for product: ${productCode}`);
-      } else {
-        const bookingDocRef = querySnapshot.docs[0].ref;
-
-        const updateData = {
-          'userDetails.stage': newStage,
-        };
-
-        // ✅ If new stage is "successful", add timestamp
-        if (newStage === "successful") {
-          updateData['userDetails.stageUpdatedAt'] = serverTimestamp();
-        }
-
-        await updateDoc(bookingDocRef, updateData);
-
-        toast.success('Stage updated successfully');
-        window.location.reload(); // optionally refactor to avoid full reload
+      if (!bookingToUpdate) {
+        toast.error('Booking not found');
+        return;
       }
-    }
 
-    // Update UI state
-    setBookings((prevBookings) =>
-      prevBookings.map((booking) =>
-        booking.receiptNumber === receiptNumber
-          ? { ...booking, stage: newStage }
-          : booking
-      )
-    );
-  } catch (error) {
-    console.error('Error updating booking stage:', error);
-    toast.error('Error updating booking stage');
-  }
-};
+      const bookingId = String(bookingToUpdate.bookingId);
+      const products = bookingToUpdate.products;
+
+      for (const product of products) {
+        const productCode = product.productCode;
+
+        const bookingsRef = collection(
+          db,
+          `products/${userData.branchCode}/products/${productCode}/bookings`
+        );
+
+        const q = query(bookingsRef, where("receiptNumber", "==", receiptNumber));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          toast.error(`No documents found for bookingId: ${bookingId} in product: ${productCode}`);
+
+          const bookingDocRef = doc(bookingsRef, bookingId);
+          await setDoc(bookingDocRef, {
+            userDetails: {
+              stage: newStage,
+              ...(newStage === "successful" && { stageUpdatedAt: serverTimestamp() }),
+            },
+            // Add other relevant fields if needed
+          });
+
+          toast.success(`Document created for product: ${productCode}`);
+        } else {
+          const bookingDocRef = querySnapshot.docs[0].ref;
+
+          const updateData = {
+            'userDetails.stage': newStage,
+          };
+
+          // ✅ If new stage is "successful", add timestamp
+          if (newStage === "successful") {
+            updateData['userDetails.stageUpdatedAt'] = serverTimestamp();
+          }
+
+          await updateDoc(bookingDocRef, updateData);
+
+          toast.success('Stage updated successfully');
+          window.location.reload(); // optionally refactor to avoid full reload
+        }
+      }
+
+      // Update UI state
+      setBookings((prevBookings) =>
+        prevBookings.map((booking) =>
+          booking.receiptNumber === receiptNumber
+            ? { ...booking, stage: newStage }
+            : booking
+        )
+      );
+    } catch (error) {
+      console.error('Error updating booking stage:', error);
+      toast.error('Error updating booking stage');
+    }
+  };
 
 
   useEffect(() => {
@@ -851,343 +873,356 @@ const handleStageChange = async (receiptNumber, newStage) => {
       document.body.classList.remove('modal-open'); // Remove class when modal is closed
     }
   }, [isModalOpen]);
-return (
-  <div className={`dashboard-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
-    <UserSidebar
-      isOpen={sidebarOpen}
-      onToggle={() => setSidebarOpen(!sidebarOpen)}
-    />
+  return (
+    <div className={`dashboard-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      <UserSidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
 
-    <div className="dashboard-content">
-      <UserHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+      <div className="dashboard-content">
+        <UserHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
 
-      {/* ================= PAGE HEADER ================= */}
-      <div className="page-header">
-        <div>
-          <h1 style={{ marginLeft: '10px', marginTop: '100px' }} className="page-title">
-            Bookings
-          </h1>
-          <p className="page-subtitle">
-            Manage all customer bookings in one place
-          </p>
-        </div>
+        {/* ================= PAGE HEADER ================= */}
+        <div className="page-header">
+          <div>
+            <h1 style={{ marginLeft: '10px', marginTop: '100px' }} className="page-title">
+              Bookings
+            </h1>
+            <p className="page-subtitle">
+              Manage all customer bookings in one place
+            </p>
+          </div>
 
-        <div className="header-actions">
-          <div className="view-toggle">
-            <button
-              className={viewMode === 'comfortable' ? 'active' : ''}
-              onClick={() => setViewMode('comfortable')}
-            >
-              Comfortable
+          <div className="header-actions">
+            <div className="view-toggle">
+              <button
+                className={viewMode === 'comfortable' ? 'active' : ''}
+                onClick={() => setViewMode('comfortable')}
+              >
+                Comfortable
+              </button>
+              <button
+                className={viewMode === 'compact' ? 'active' : ''}
+                onClick={() => setViewMode('compact')}
+              >
+                Compact
+              </button>
+            </div>
+
+            <button className="btn-secondary" onClick={exportToCSV}>
+              <FaUpload /> Export
             </button>
-            <button
-              className={viewMode === 'compact' ? 'active' : ''}
-              onClick={() => setViewMode('compact')}
-            >
-              Compact
+
+            <button className="btn-primary" onClick={handleAddBooking}>
+              <FaPlus /> Add Booking
             </button>
           </div>
-
-          <button className="btn-secondary" onClick={exportToCSV}>
-            <FaUpload /> Export
-          </button>
-
-          <button className="btn-primary" onClick={handleAddBooking}>
-            <FaPlus /> Add Booking
-          </button>
         </div>
-      </div>
 
-      {/* ================= KPI FILTER CARDS ================= */}
-      <div className="kpi-grid">
-        {[
-          { key: 'all', label: 'All', count: totalBookingsCount },
-          { key: 'Booking', label: 'Booking', count: stageCounts['Booking'] || 0 },
-          { key: 'pickupPending', label: 'Pickup Pending', count: stageCounts['pickupPending'] || 0 },
-          { key: 'pickup', label: 'Picked Up', count: stageCounts['pickup'] || 0 },
-          { key: 'returnPending', label: 'Return Pending', count: stageCounts['returnPending'] || 0 },
-          { key: 'return', label: 'Returned', count: stageCounts['return'] || 0 },
-          { key: 'successful', label: 'Successful', count: stageCounts['successful'] || 0 },
-          { key: 'cancelled', label: 'Cancelled', count: stageCounts['cancelled'] || 0 },
-          { key: 'postponed', label: 'Postponed', count: stageCounts['postponed'] || 0 },
-        ].map((item) => (
-          <div
-            key={item.key}
-            className={`kpi-card ${stageFilter === item.key ? 'active' : ''}`}
-            onClick={() => setStageFilter(item.key)}
-          >
-            <span className="kpi-label">{item.label}</span>
-            <span className="kpi-value">{item.count}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* ================= SEARCH BAR ================= */}
-      <div className="table-card">
-        <div className="table-toolbar">
-          <div className="search-wrapper">
-            <FaSearch />
-            <select
-              value={searchField}
-              onChange={(e) => setSearchField(e.target.value)}
+        {/* ================= KPI FILTER CARDS ================= */}
+        <div className="kpi-grid">
+          {[
+            { key: 'all', label: 'All', count: totalBookingsCount },
+            { key: 'Booking', label: 'Booking', count: stageCounts['Booking'] || 0 },
+            { key: 'pickupPending', label: 'Pickup Pending', count: stageCounts['pickupPending'] || 0 },
+            { key: 'pickup', label: 'Picked Up', count: stageCounts['pickup'] || 0 },
+            { key: 'returnPending', label: 'Return Pending', count: stageCounts['returnPending'] || 0 },
+            { key: 'return', label: 'Returned', count: stageCounts['return'] || 0 },
+            { key: 'successful', label: 'Successful', count: stageCounts['successful'] || 0 },
+            { key: 'cancelled', label: 'Cancelled', count: stageCounts['cancelled'] || 0 },
+            { key: 'postponed', label: 'Postponed', count: stageCounts['postponed'] || 0 },
+          ].map((item) => (
+            <div
+              key={item.key}
+              className={`kpi-card ${stageFilter === item.key ? 'active' : ''}`}
+              onClick={() => setStageFilter(item.key)}
             >
-              <option value="receiptNumber">Receipt No</option>
-              <option value="bookingcreation">Booking Date</option>
-              <option value="createdAt">Created At</option>
-              <option value="clientname">Client Name</option>
-              <option value="contactNo">Contact</option>
-              <option value="emailId">Email</option>
-              <option value="productCode">Product Code</option>
-              <option value="pickupDate">Pickup Date</option>
-              <option value="returnDate">Return Date</option>
-            </select>
-
-            <input
-              type="text"
-              placeholder="Search bookings..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {/* ========= CUSTOMIZE FIELDS DROPDOWN ========= */}
-          {/* ================= CUSTOMIZE FIELDS BUTTON ================= */}
-{/* ================= CUSTOMIZE FIELDS BUTTON ================= */}
-<div className="column-selector">
-  <button
-    className="btn-secondary"
-    onClick={() => {
-      // Copy current settings into temp state
-      setTempVisibleFields(visibleFields);
-      setShowFieldDropdown(true);
-    }}
-  >
-    Customize Fields
-  </button>
-</div>
-
-{/* ================= CENTERED FIELD MODAL ================= */}
-{showFieldDropdown && (
-  <div
-    className="field-modal-overlay"
-    onClick={() => setShowFieldDropdown(false)}
-  >
-    <div
-      className="field-modal"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* ===== HEADER ===== */}
-      <div className="field-modal-header">
-        <h3>Customize Fields</h3>
-        <button
-          className="close-btn"
-          onClick={() => setShowFieldDropdown(false)}
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* ===== BODY ===== */}
-      <div className="field-modal-body">
-        {EXPORT_FIELDS.map((field) => (
-          <label key={field} className="column-option">
-            <input
-              type="checkbox"
-              checked={!!tempVisibleFields[field]}
-              onChange={() =>
-                setTempVisibleFields((prev) => ({
-                  ...prev,
-                  [field]: !prev[field],
-                }))
-              }
-            />
-            <span>{field}</span>
-          </label>
-        ))}
-      </div>
-
-      {/* ===== FOOTER ===== */}
-      <div className="field-modal-footer">
-        <button
-          className="btn-secondary"
-          disabled={savingFields}
-          onClick={() => setShowFieldDropdown(false)}
-        >
-          Cancel
-        </button>
-
-        <button
-          className="btn-primary"
-          disabled={savingFields}
-          onClick={async () => {
-            try {
-              setSavingFields(true);
-
-              const branchRef = doc(db, "branches", userData.branchCode);
-
-              await setDoc(
-                branchRef,
-                {
-                  bookingFieldSettings: {
-                    visibleFields: tempVisibleFields,
-                    updatedAt: serverTimestamp(),
-                  },
-                },
-                { merge: true }
-              );
-
-              // Apply saved settings to UI
-              setVisibleFields(tempVisibleFields);
-              setShowFieldDropdown(false);
-
-              toast.success("Field preferences saved for this branch");
-            } catch (error) {
-              console.error(error);
-              toast.error("Failed to save field preferences");
-            } finally {
-              setSavingFields(false);
-            }
-          }}
-        >
-          {savingFields ? "Saving..." : "Save"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-
+              <span className="kpi-label">{item.label}</span>
+              <span className="kpi-value">{item.count}</span>
+            </div>
+          ))}
         </div>
 
-        {/* ================= BOOKING CARD LIST ================= */}
-        {loading ? (
-          <div className="table-loading">Loading bookings…</div>
-        ) : finalFilteredBookings.length === 0 ? (
-          <div className="empty-state">No bookings found</div>
-        ) : (
-          <div className={`booking-card-list ${viewMode}`}>
-            {finalFilteredBookings.map((booking) => {
-              const flat = flattenBooking(booking);
+        {/* ================= SEARCH BAR ================= */}
+        <div className="table-card">
+          <div className="table-toolbar">
+            <div className="search-wrapper">
+              <FaSearch />
+              <select
+                value={searchField}
+                onChange={(e) => {
+                  setSearchField(e.target.value);
+                  setSearchQuery(''); // clear previous search value
+                }}
+              >
 
-              return (
+                <option value="receiptNumber">Receipt No</option>
+                <option value="bookingcreation">Booking Date</option>
+                <option value="createdAt">Created At</option>
+                <option value="clientname">Client Name</option>
+                <option value="contactNo">Contact</option>
+                <option value="emailId">Email</option>
+                <option value="productCode">Product Code</option>
+                <option value="pickupDate">Pickup Date</option>
+                <option value="returnDate">Return Date</option>
+              </select>
+
+              <input
+                type={
+                  searchField === 'pickupDate' || searchField === 'returnDate'|| searchField === 'createdAt'
+                    ? 'date'
+                    : 'text'
+                }
+                placeholder={
+                  searchField === 'pickupDate' || searchField === 'returnDate'
+                    ? ''
+                    : 'Search bookings...'
+                }
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+
+            </div>
+
+            {/* ========= CUSTOMIZE FIELDS DROPDOWN ========= */}
+            {/* ================= CUSTOMIZE FIELDS BUTTON ================= */}
+            {/* ================= CUSTOMIZE FIELDS BUTTON ================= */}
+            <div className="column-selector">
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  // Copy current settings into temp state
+                  setTempVisibleFields(visibleFields);
+                  setShowFieldDropdown(true);
+                }}
+              >
+                Customize Fields
+              </button>
+            </div>
+
+            {/* ================= CENTERED FIELD MODAL ================= */}
+            {showFieldDropdown && (
+              <div
+                className="field-modal-overlay"
+                onClick={() => setShowFieldDropdown(false)}
+              >
                 <div
-                  key={booking.receiptNumber}
-                  className="booking-card"
-                  onClick={() => handleBookingClick(booking)}
+                  className="field-modal"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {/* LEFT */}
-                  <div className="booking-main">
-                    {visibleFields.receiptNumber && (
-                      <div className="booking-receipt">
-                        #{booking.receiptNumber}
-                      </div>
-                    )}
-
-                    {visibleFields.clientname && (
-                      <div className="booking-client">
-                        {booking.clientname}
-                      </div>
-                    )}
-
-                    {(visibleFields.contactNo || visibleFields.email) && (
-                      <div className="booking-contact">
-                        {visibleFields.contactNo && <>📞 {booking.contactNo}</>}
-                        {visibleFields.email && <> &nbsp;&nbsp; ✉ {booking.email}</>}
-                      </div>
-                    )}
+                  {/* ===== HEADER ===== */}
+                  <div className="field-modal-header">
+                    <h3>Customize Fields</h3>
+                    <button
+                      className="close-btn"
+                      onClick={() => setShowFieldDropdown(false)}
+                    >
+                      ✕
+                    </button>
                   </div>
 
-                  {/* CENTER */}
-                  <div className="booking-meta">
-                    {visibleFields.products && (
-                      <div>
-                        <span className="meta-label">Products</span>
-                        <span className="meta-value">
-                          {booking.products
-                            .map((p) => `${p.productCode} × ${p.quantity}`)
-                            .join(', ')}
-                        </span>
-                      </div>
-                    )}
-
-                    {visibleFields.pickupDate && (
-                      <div>
-                        <span className="meta-label">Pickup</span>
-                        <span className="meta-value">
-                          {booking.pickupDate?.toLocaleDateString()}
-                        </span>
-                      </div>
-                    )}
-
-                    {visibleFields.returnDate && (
-                      <div>
-                        <span className="meta-label">Return</span>
-                        <span className="meta-value">
-                          {booking.returnDate?.toLocaleDateString()}
-                        </span>
-                      </div>
-                    )}
+                  {/* ===== BODY ===== */}
+                  <div className="field-modal-body">
+                    {EXPORT_FIELDS.map((field) => (
+                      <label key={field} className="column-option">
+                        <input
+                          type="checkbox"
+                          checked={!!tempVisibleFields[field]}
+                          onChange={() =>
+                            setTempVisibleFields((prev) => ({
+                              ...prev,
+                              [field]: !prev[field],
+                            }))
+                          }
+                        />
+                        <span>{field}</span>
+                      </label>
+                    ))}
                   </div>
 
-                  {/* RIGHT */}
-                  <div className="booking-actions">
-                    {visibleFields.stage && (
-                      <span className={`status-pill status-${booking.stage}`}>
-                        {booking.stage}
-                      </span>
-                    )}
+                  {/* ===== FOOTER ===== */}
+                  <div className="field-modal-footer">
+                    <button
+                      className="btn-secondary"
+                      disabled={savingFields}
+                      onClick={() => setShowFieldDropdown(false)}
+                    >
+                      Cancel
+                    </button>
 
-                    <div className="row-actions">
-                      <button
-                        className="icon-btn whatsapp"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleContactNumberClick(booking);
-                        }}
-                      >
-                        <FaWhatsapp />
-                      </button>
+                    <button
+                      className="btn-primary"
+                      disabled={savingFields}
+                      onClick={async () => {
+                        try {
+                          setSavingFields(true);
 
-                      {userData?.role !== 'Subuser' && (
+                          const branchRef = doc(db, "branches", userData.branchCode);
+
+                          await setDoc(
+                            branchRef,
+                            {
+                              bookingFieldSettings: {
+                                visibleFields: tempVisibleFields,
+                                updatedAt: serverTimestamp(),
+                              },
+                            },
+                            { merge: true }
+                          );
+
+                          // Apply saved settings to UI
+                          setVisibleFields(tempVisibleFields);
+                          setShowFieldDropdown(false);
+
+                          toast.success("Field preferences saved for this branch");
+                        } catch (error) {
+                          console.error(error);
+                          toast.error("Failed to save field preferences");
+                        } finally {
+                          setSavingFields(false);
+                        }
+                      }}
+                    >
+                      {savingFields ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+          </div>
+
+          {/* ================= BOOKING CARD LIST ================= */}
+          {loading ? (
+            <div className="table-loading">Loading bookings…</div>
+          ) : finalFilteredBookings.length === 0 ? (
+            <div className="empty-state">No bookings found</div>
+          ) : (
+            <div className={`booking-card-list ${viewMode}`}>
+              {finalFilteredBookings.map((booking) => {
+                const flat = flattenBooking(booking);
+
+                return (
+                  <div
+                    key={booking.receiptNumber}
+                    className="booking-card"
+                    onClick={() => handleBookingClick(booking)}
+                  >
+                    {/* LEFT */}
+                    <div className="booking-main">
+                      {visibleFields.receiptNumber && (
+                        <div className="booking-receipt">
+                          #{booking.receiptNumber}
+                        </div>
+                      )}
+
+                      {visibleFields.clientname && (
+                        <div className="booking-client">
+                          {booking.clientname}
+                        </div>
+                      )}
+
+                      {(visibleFields.contactNo || visibleFields.email) && (
+                        <div className="booking-contact">
+                          {visibleFields.contactNo && <>📞 {booking.contactNo}</>}
+                          {visibleFields.email && <> &nbsp;&nbsp; ✉ {booking.email}</>}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* CENTER */}
+                    <div className="booking-meta">
+                      {visibleFields.products && (
+                        <div>
+                          <span className="meta-label">Products</span>
+                          <span className="meta-value">
+                            {booking.products
+                              .map((p) => `${p.productCode} × ${p.quantity}`)
+                              .join(', ')}
+                          </span>
+                        </div>
+                      )}
+
+                      {visibleFields.pickupDate && (
+                        <div>
+                          <span className="meta-label">Pickup</span>
+                          <span className="meta-value">
+                            {booking.pickupDate?.toLocaleDateString('en-GB')}
+                          </span>
+                        </div>
+                      )}
+
+                      {visibleFields.returnDate && (
+                        <div>
+                          <span className="meta-label">Return</span>
+                          <span className="meta-value">
+                            {booking.returnDate?.toLocaleDateString('en-GB')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* RIGHT */}
+                    <div className="booking-actions">
+                      {visibleFields.stage && (
+                        <span className={`status-pill status-${booking.stage}`}>
+                          {booking.stage}
+                        </span>
+                      )}
+
+                      <div className="row-actions">
                         <button
-                          className="icon-btn danger"
+                          className="icon-btn whatsapp"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDelete(booking.receiptNumber);
+                            handleContactNumberClick(booking);
                           }}
                         >
-                          <FaTrash />
+                          <FaWhatsapp />
                         </button>
+
+                        {userData?.role !== 'Subuser' && (
+                          <button
+                            className="icon-btn danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(booking.receiptNumber);
+                            }}
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ========= DYNAMIC FIELDS (NON-PRIMARY ONLY) ========= */}
+                    <div className="booking-dynamic-fields">
+                      {EXPORT_FIELDS.map(
+                        (field) =>
+                          visibleFields[field] &&
+                          !PRIMARY_FIELDS.includes(field) && (
+                            <div key={field} className="field-row">
+                              <span className="field-label">{field}</span>
+                              <span className="field-value">
+                                {flat[field] || "-"}
+                              </span>
+                            </div>
+                          )
                       )}
                     </div>
                   </div>
-
-                  {/* ========= DYNAMIC FIELDS (NON-PRIMARY ONLY) ========= */}
-                  <div className="booking-dynamic-fields">
-                    {EXPORT_FIELDS.map(
-                      (field) =>
-                        visibleFields[field] &&
-                        !PRIMARY_FIELDS.includes(field) && (
-                          <div key={field} className="field-row">
-                            <span className="field-label">{field}</span>
-                            <span className="field-value">
-                              {flat[field] || "-"}
-                            </span>
-                          </div>
-                        )
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
 
-    <ToastContainer />
-  </div>
-);
+      <ToastContainer />
+    </div>
+  );
 
 
 

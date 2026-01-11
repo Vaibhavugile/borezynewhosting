@@ -439,10 +439,13 @@ select:focus {
   white-space: normal;
 }
 
-.product-table td[data-label="Code"] {
-  color: var(--text-muted);
+.product-table tbody td[data-label="Code"] {
+  color: #16a34a; /* green */
   font-size: 12px;
+  font-weight: 900;
 }
+
+
 
 /* =====================================================
    PRICE EMPHASIS

@@ -1,5 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, deleteDoc, doc } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  collection,
+  getDocs,
+  query,
+  deleteDoc,
+  doc,
+  addDoc,
+} from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { useUser } from '../../Auth/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -7,210 +14,261 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import UserHeader from '../../UserDashboard/UserHeader';
 import UserSidebar from '../../UserDashboard/UserSidebar';
-import '../Availability/Availability.css';
+import './CreditNoteDashboard.css';
 import search from '../../../assets/Search.png';
-import { FaSearch, FaFilter, FaDownload, FaUpload, FaPlus, FaEdit, FaTrash, FaCopy } from 'react-icons/fa';
+import { FaUpload, FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
+import Papa from 'papaparse';
+import { v4 as uuidv4 } from 'uuid';
 
 const CreditNoteDashboard = () => {
   const [creditNotes, setCreditNotes] = useState([]);
+  const [filteredCreditNotes, setFilteredCreditNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+
   const { userData } = useUser();
+  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState('');
-  const [filteredCreditNotes, setFilteredCreditNotes] = useState([]);
-  const navigate = useNavigate();
 
- const fetchCreditNotes = async () => {
-  setLoading(true);
-  try {
-    if (userData?.branchCode) {
-      const creditNotesRef = collection(db, `products/${userData.branchCode}/creditNotes`);
-      const q = query(creditNotesRef);
-      const querySnapshot = await getDocs(q);
-      const notesData = querySnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || null,
-          expiryDate: doc.data().expiryDate?.toDate() || null,
+  /* ================= FETCH ================= */
+  const fetchCreditNotes = async () => {
+    setLoading(true);
+    try {
+      if (!userData?.branchCode) return;
+
+      const ref = collection(
+        db,
+        `products/${userData.branchCode}/creditNotes`
+      );
+      const snapshot = await getDocs(query(ref));
+
+      const data = snapshot.docs
+        .map((d) => ({
+          id: d.id,
+          ...d.data(),
+          createdAt: d.data().createdAt?.toDate() || null,
         }))
-        .sort((a, b) => b.createdAt - a.createdAt); // Sort by date (newest first)
+        .sort((a, b) => b.createdAt - a.createdAt);
 
-      setCreditNotes(notesData);
-      setFilteredCreditNotes(notesData);
+      setCreditNotes(data);
+      setFilteredCreditNotes(data);
+    } catch (err) {
+      console.error(err);
+      toast.error('Error fetching credit notes');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching credit notes:', error);
-    toast.error('Error fetching credit notes');
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   useEffect(() => {
     fetchCreditNotes();
   }, [userData?.branchCode]);
 
-  const handleSearch = () => {
-    const lowerCaseQuery = searchQuery.toLowerCase();
-    const filtered = creditNotes.filter(note => {
-      const searchFieldValue = String(note[searchField] || '').toLowerCase();
-      return searchFieldValue.includes(lowerCaseQuery);
+  /* ================= SEARCH ================= */
+  useEffect(() => {
+    const q = searchQuery.toLowerCase();
+    const filtered = creditNotes.filter((note) => {
+      if (!searchField) return true;
+      const value = String(note[searchField] || '').toLowerCase();
+      return value.includes(q);
     });
     setFilteredCreditNotes(filtered);
-  };
-
-  useEffect(() => {
-    handleSearch();
   }, [searchQuery, searchField, creditNotes]);
 
-  const handleAddCreditNote = () => {
-    navigate('/add-credit-note');
+  /* ================= KPI ================= */
+  const kpis = filteredCreditNotes.reduce(
+    (acc, n) => {
+      acc.total += 1;
+      acc.amount += Number(n.amount || 0);
+      acc.used += Number(n.CreditUsed || 0);
+      acc.balance += Number(n.Balance || 0);
+      return acc;
+    },
+    { total: 0, amount: 0, used: 0, balance: 0 }
+  );
+
+  /* ================= IMPORT ================= */
+  const handleImportClick = () => {
+    fileInputRef.current.click();
   };
 
-  const handleEdit = (noteId) => {
-    navigate(`/edit-credit-note/${noteId}`);
+  const handleFileImport = (e) => {
+    const file = e.target.files[0];
+    if (!file || !userData?.branchCode) return;
+
+    setImporting(true);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const ref = collection(
+            db,
+            `products/${userData.branchCode}/creditNotes`
+          );
+
+          const promises = results.data.map((row) => {
+            if (!row.mobileNumber || !row.amount) return null;
+
+            return addDoc(ref, {
+              creditNoteId: uuidv4(),
+              Name: row.Name || '',
+              mobileNumber: row.mobileNumber,
+              alternateMobileNumber: row.alternateMobileNumber || '',
+              amount: Number(row.amount),
+              CreditUsed: Number(row.CreditUsed) || 0,
+              Balance:
+                Number(row.Balance) ||
+                Number(row.amount) - Number(row.CreditUsed || 0),
+              Comment: row.Comment || 'N/A',
+              status: row.status || 'active',
+              createdAt: new Date(),
+              createdBy: userData?.email || 'import',
+            });
+          });
+
+          await Promise.all(promises.filter(Boolean));
+          toast.success('Credit notes imported successfully');
+          fetchCreditNotes();
+        } catch (err) {
+          console.error(err);
+          toast.error('Import failed');
+        } finally {
+          setImporting(false);
+          e.target.value = '';
+        }
+      },
+    });
   };
 
-  const handleDelete = async (noteId) => {
-    const confirmDelete = window.confirm('Are you sure you want to delete this credit note?');
-    if (!confirmDelete) return;
-
+  /* ================= DELETE ================= */
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this credit note?')) return;
     try {
-      await deleteDoc(doc(db, `products/${userData.branchCode}/creditNotes`, noteId));
-      setCreditNotes(prevNotes => prevNotes.filter(note => note.id !== noteId));
-      setFilteredCreditNotes(prevNotes => prevNotes.filter(note => note.id !== noteId));
-      toast.success('Credit note deleted successfully');
-    } catch (error) {
-      console.error('Error deleting credit note:', error);
-      toast.error('Error deleting credit note');
+      await deleteDoc(
+        doc(db, `products/${userData.branchCode}/creditNotes`, id)
+      );
+      fetchCreditNotes();
+      toast.success('Deleted successfully');
+    } catch {
+      toast.error('Delete failed');
     }
   };
 
   return (
     <div className={`dashboard-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
-      <UserSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="dashboard-content">
-        <UserHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <h2 style={{ marginLeft: '10px', marginTop: '120px' }}>Credit Note Management</h2>
+      <UserSidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
 
-        <div className="toolbar-container">
-          <div className="search-bar-container7">
-            <img src={search} alt="search icon" className="search-icon7" />
+      <div className="dashboard-content creditnote-page">
+        <UserHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+
+        <h2 className="creditnote-title">Credit Note Management</h2>
+
+        {/* KPI */}
+        <div className="creditnote-kpi-grid">
+          <div className="kpi-card">
+            <h4>Total Notes</h4>
+            <p>{kpis.total}</p>
+          </div>
+          <div className="kpi-card">
+            <h4>Total Amount</h4>
+            <p>₹ {kpis.amount}</p>
+          </div>
+          <div className="kpi-card">
+            <h4>Credit Used</h4>
+            <p>₹ {kpis.used}</p>
+          </div>
+          <div className="kpi-card highlight">
+            <h4>Balance</h4>
+            <p>₹ {kpis.balance}</p>
+          </div>
+        </div>
+
+        {/* TOOLBAR */}
+        <div className="creditnote-toolbar">
+          <div className="creditnote-search">
+            <img src={search} alt="search" />
             <select
               value={searchField}
               onChange={(e) => setSearchField(e.target.value)}
-              className="search-dropdown7"
             >
               <option value="">Search By</option>
               <option value="Name">Name</option>
-              <option value="mobileNumber">Mobile Number</option>
-              <option value="amount">Amount</option>
-              <option value="CreditUsed">Credit Used</option>
-              <option value="Balance">Balance</option>
+              <option value="mobileNumber">Mobile</option>
               <option value="status">Status</option>
-             <option value="usedReceipts">Receipt Number</option>
-
-              
             </select>
             <input
-              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search..."
             />
           </div>
-          <div className="action-buttons">
-            <label className="add-product-button" onClick={handleAddCreditNote}>
-              <FaPlus />
-              Add Credit Note
-            </label>
+
+          <div className="creditnote-actions">
+            <button
+              className="creditnote-btn primary"
+              onClick={() => navigate('/add-credit-note')}
+            >
+              <FaPlus /> Add
+            </button>
+
+            <button
+              className="creditnote-btn secondary"
+              onClick={handleImportClick}
+              disabled={importing}
+            >
+              <FaUpload /> {importing ? 'Importing…' : 'Import'}
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              hidden
+              onChange={handleFileImport}
+            />
           </div>
         </div>
 
-        <div className="booking-list">
-          <div className="booking-table-container">
-            {loading ? (
-              <p>Loading credit notes...</p>
-            ) : (
-              <table className="booking-table">
-                <thead>
-                  <tr>
-                    <th>Created At</th>
-                    <th>Name</th>
-                    <th>Mobile Number</th>
-                    <th>Credit Amount</th>
-                    <th>Credit Used</th>
-                    <th>Balance</th>
-                    <th>Receipts</th>
-                    <th>Comment</th>
-                    <th>Status</th>
-                    <th>Created By</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCreditNotes.map(note => (
-                    <tr key={note.id}>
-                      <td>{note.createdAt?.toLocaleString() || 'N/A'}</td>
-                      <td>{note.Name}</td>
-                      <td>{note.mobileNumber}</td>
-                      <td>{note.amount}</td>
-                      <td>{note.CreditUsed}</td>
-                      <td>{note.Balance}</td>
-                      <td>
-                        {note.usedReceipts && note.usedReceipts.length > 0 ? (
-                          note.usedReceipts.map((receipt) => (
-                            <div
-                              key={receipt}
-                              style={{
-                                
-                                
-                                textDecoration: 'underline',
-                                marginBottom: '4px'
-                              }}
-                              onClick={() => navigate(`/booking-details/${receipt}`, { state: { receiptNumber: receipt } })}
-                            >
-                              {receipt}
-                            </div>
-                          ))
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>{note.Comment}</td>
-                      <td>{note.status}</td>
-                      <td>{note.createdBy}</td>
-                      
-                      <td>
-                         <div className="action-buttons">
-                        <label
-                          onClick={() => handleEdit(note.id)}  
-                        >
-                          <FaEdit style={{ color: '#757575' , cursor: 'pointer'}} />
-                        </label>
-                         {userData?.role !== 'Subuser' && (
-                        <label
-                          onClick={() => handleDelete(note.id)}
+        {/* CARDS */}
+        {loading ? (
+          <p className="creditnote-loading">Loading…</p>
+        ) : (
+          <div className="creditnote-card-grid">
+            {filteredCreditNotes.map((n) => (
+              <div className="creditnote-card" key={n.id}>
+                <div className="card-header">
+                  <h3>{n.Name}</h3>
+                  <span className={`status ${n.status}`}>{n.status}</span>
+                </div>
 
-                        >
-                          <FaTrash style={{ color: '#757575' , cursor: 'pointer'}} />
-                         
-                        </label>
-                         )}
+                <div className="card-body">
+                  <p><strong>Mobile:</strong> {n.mobileNumber}</p>
+                  <p><strong>Amount:</strong> ₹ {n.amount}</p>
+                  <p><strong>Used:</strong> ₹ {n.CreditUsed}</p>
+                  <p><strong>Balance:</strong> ₹ {n.Balance}</p>
+                  <p className="comment">{n.Comment}</p>
+                </div>
 
-
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                <div className="card-actions">
+                  <FaEdit onClick={() => navigate(`/edit-credit-note/${n.id}`)} />
+                  {userData?.role !== 'Subuser' && (
+                    <FaTrash onClick={() => handleDelete(n.id)} />
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
+
         <ToastContainer />
       </div>
     </div>

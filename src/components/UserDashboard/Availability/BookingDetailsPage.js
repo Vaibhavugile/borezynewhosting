@@ -915,9 +915,18 @@ return (
             {isEditingSecondPayment ? (
               <>
                 <div className="info-row">
-                  <label>Second Payment Mode</label>
-                  <input value={secondPaymentMode} onChange={(e) => setSecondPaymentMode(e.target.value)} />
-                </div>
+  <label>Second Payment Mode</label>
+  <select
+    value={secondPaymentMode}
+    onChange={(e) => setSecondPaymentMode(e.target.value)}
+  >
+    <option value="">Select payment mode</option>
+    <option value="UPI">UPI</option>
+    <option value="Cash">Cash</option>
+    <option value="Card">Card</option>
+  </select>
+</div>
+
 
                 <div className="info-row">
                   <label>Second Payment Details</label>

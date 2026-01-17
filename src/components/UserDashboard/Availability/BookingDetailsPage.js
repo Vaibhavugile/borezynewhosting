@@ -12,6 +12,8 @@ import { serverTimestamp } from 'firebase/firestore'; // Ensure this is imported
 import { useLocation } from 'react-router-dom';
 import { writeBatch } from "firebase/firestore";
 import { orderBy } from "firebase/firestore";
+import { useSearchParams } from "react-router-dom";
+
 const formatTimestamp = (timestamp) => {
   if (!timestamp) return 'N/A'; // Handle empty timestamp
 
@@ -56,6 +58,7 @@ const BookingDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate(); // Initialize navigate
   const { userData } = useUser(); // Access userData from the context
+const [searchParams] = useSearchParams();
 
   // State for editing specific fields
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
@@ -532,12 +535,14 @@ const BookingDetailsPage = () => {
         {/* ================= HEADER ================= */}
         <div className="saas-topbar">
           <div className="topbar-left">
-            <img
-              src={backIcon}
-              alt="Back"
-              className="back-icon"
-              onClick={() => navigate("/usersidebar/clients")}
-            />
+  <img
+  src={backIcon}
+  alt="Back"
+  className="back-icon"
+  onClick={() => navigate(-1)}
+/>
+
+
             <div>
               <h2>Receipt #{receiptNumber}</h2>
               <span className="stage-pill">{stage}</span>

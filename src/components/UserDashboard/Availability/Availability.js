@@ -14,6 +14,7 @@ import { Label } from 'recharts';
 import { toast, ToastContainer } from 'react-toastify'; // Import react-toastify
 import 'react-toastify/dist/ReactToastify.css'; // Import CSS for react-toastify
 import { serverTimestamp } from "firebase/firestore";
+import { useSearchParams } from 'react-router-dom';
 
 
 // ================= FIELD SCHEMA (FROM EXPORT) =================
@@ -145,18 +146,25 @@ const BookingDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedReceiptNumber, setSelectedReceiptNumber] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBooking, setSelectedBooking] = useState(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+
+const [searchQuery, setSearchQuery] = useState(
+  searchParams.get('query') || ''
+);  const [selectedBooking, setSelectedBooking] = useState(null);
 
   const [filteredBookings, setFilteredBookings] = useState(bookings);
 
 
-  const [searchField, setSearchField] = useState('');
-  const [importedData, setImportedData] = useState(null);
-  const [viewMode, setViewMode] = useState('compact'); // 'compact' | 'comfortable'
-
+const [searchField, setSearchField] = useState(
+  searchParams.get('field') || ''
+);  const [importedData, setImportedData] = useState(null);
+const [viewMode, setViewMode] = useState(
+  searchParams.get('view') || 'compact'
+);
   const navigate = useNavigate();
-  const [stageFilter, setStageFilter] = useState('all'); // New state for filtering by stage
+const [stageFilter, setStageFilter] = useState(
+  searchParams.get('stage') || 'all'
+);
   const { userData } = useUser();
   const [templates, setTemplates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
@@ -168,6 +176,14 @@ const BookingDashboard = () => {
   const [showFieldDropdown, setShowFieldDropdown] = useState(false);
   const [tempVisibleFields, setTempVisibleFields] = useState({});
   const [savingFields, setSavingFields] = useState(false);
+
+  useEffect(() => {
+  setStageFilter(searchParams.get('stage') || 'all');
+  setSearchField(searchParams.get('field') || '');
+  setSearchQuery(searchParams.get('query') || '');
+  setViewMode(searchParams.get('view') || 'compact');
+}, [searchParams]);
+
   const formatDateYYYYMMDD = (date) => {
     if (!date) return "";
     const y = date.getFullYear();
@@ -559,12 +575,13 @@ const BookingDashboard = () => {
   };
 
   useEffect(() => {
-    handleSearch();
-  }, [searchQuery, searchField]);
+  handleSearch();
+}, [searchQuery, searchField, stageFilter]);
 
-  useEffect(() => {
-    setFilteredBookings(bookings);
-  }, [bookings]);
+
+useEffect(() => {
+  handleSearch();
+}, [bookings]);
 
 
   const exportToCSV = () => {
@@ -865,6 +882,18 @@ const BookingDashboard = () => {
       document.body.classList.remove('modal-open'); // Remove class when modal is closed
     }
   }, [isModalOpen]);
+
+  useEffect(() => {
+  const params = {};
+
+  if (stageFilter && stageFilter !== 'all') params.stage = stageFilter;
+  if (searchField) params.field = searchField;
+  if (searchQuery) params.query = searchQuery;
+  if (viewMode && viewMode !== 'compact') params.view = viewMode;
+
+  setSearchParams(params, { replace: true });
+}, [stageFilter, searchField, searchQuery, viewMode]);
+
   return (
     <div className={`dashboard-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <UserSidebar

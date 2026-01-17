@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, updateDoc, doc, arrayUnion,getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, arrayUnion, getDoc } from 'firebase/firestore';
 import backIcon from '../../../assets/arrowiosback_111116.png';
 import { db } from '../../../firebaseConfig';
 import './BookingDetailsPage.css';
@@ -10,7 +10,8 @@ import 'react-toastify/dist/ReactToastify.css'; // Import CSS for react-toastify
 import { FaWhatsapp } from 'react-icons/fa';
 import { serverTimestamp } from 'firebase/firestore'; // Ensure this is imported
 import { useLocation } from 'react-router-dom';
-
+import { writeBatch } from "firebase/firestore";
+import { orderBy } from "firebase/firestore";
 const formatTimestamp = (timestamp) => {
   if (!timestamp) return 'N/A'; // Handle empty timestamp
 
@@ -63,7 +64,7 @@ const BookingDetailsPage = () => {
   const [selectedContactNo, setSelectedContactNo] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
-const [previewImage, setPreviewImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const [isEditingSecondPayment, setIsEditingSecondPayment] = useState(false);
   const [secondPaymentMode, setSecondPaymentMode] = useState('');
@@ -94,10 +95,11 @@ const [previewImage, setPreviewImage] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState('');
   const [firstPaymentDetails, setFirstPaymentDetails] = useState('');
   const [firstPaymentMode, setFirstPaymentMode] = useState('');
-const [branchName, setBranchName] = useState('');
+  const [branchName, setBranchName] = useState('');
+  const activityLogs = bookings[0]?.activityLog || [];
 
-const location = useLocation();
-const isDeleted = location.state?.isDeleted || false;
+  const location = useLocation();
+  const isDeleted = location.state?.isDeleted || false;
   useEffect(() => {
     const fetchBookingAndProductDetails = async () => {
       setLoading(true);
@@ -192,23 +194,23 @@ const isDeleted = location.state?.isDeleted || false;
     fetchBookingAndProductDetails();
   }, [receiptNumber, userData.branchCode]);
   useEffect(() => {
-  const fetchBranchName = async () => {
-    try {
-      if (!userData?.branchCode) return;
+    const fetchBranchName = async () => {
+      try {
+        if (!userData?.branchCode) return;
 
-      const branchRef = doc(db, "branches", userData.branchCode);
-      const branchSnap = await getDoc(branchRef);
+        const branchRef = doc(db, "branches", userData.branchCode);
+        const branchSnap = await getDoc(branchRef);
 
-      if (branchSnap.exists()) {
-        setBranchName(branchSnap.data().branchName || "");
+        if (branchSnap.exists()) {
+          setBranchName(branchSnap.data().branchName || "");
+        }
+      } catch (error) {
+        console.error("Error fetching branch name:", error);
       }
-    } catch (error) {
-      console.error("Error fetching branch name:", error);
-    }
-  };
+    };
 
-  fetchBranchName();
-}, [userData?.branchCode]);
+    fetchBranchName();
+  }, [userData?.branchCode]);
 
 
   useEffect(() => {
@@ -216,8 +218,13 @@ const isDeleted = location.state?.isDeleted || false;
       try {
         if (!userData?.branchCode) return;
 
-        const templatesCol = collection(db, `products/${userData.branchCode}/templates`);
-        const templatesSnapshot = await getDocs(templatesCol);
+        const templatesCol = collection(
+          db,
+          `products/${userData.branchCode}/templates`
+        );
+
+        const templatesQuery = query(templatesCol, orderBy("order", "asc"));
+        const templatesSnapshot = await getDocs(templatesQuery);
 
         const templatesList = templatesSnapshot.docs.map((doc) => ({
           id: doc.id,
@@ -241,126 +248,109 @@ const isDeleted = location.state?.isDeleted || false;
   }, [isModalOpen]);
 
 
+
   const handleSaveSecondPayment = async () => {
     if (bookings.length === 0) return;
 
-    const booking = bookings[0];
-    const bookingId = booking.id;
-    const productId = booking.productId;
-    const bookingRef = doc(db, `products/${userData.branchCode}/products/${productId}/bookings`, bookingId);
-
     try {
-      const currentDetails = booking.userDetails || {};
+      const batch = writeBatch(db);
       const changes = [];
+
+      // Compare against FIRST booking (source of truth)
+      const currentDetails = bookings[0].userDetails || {};
+
+      // ---- build updates object ONCE ----
       const updates = {};
 
       if (currentDetails.secondpaymentmode !== secondPaymentMode) {
+        updates["userDetails.secondpaymentmode"] = secondPaymentMode;
         changes.push({
-          field: 'Second Payment Mode',
-          previous: currentDetails.secondpaymentmode || 'N/A',
+          field: "Second Payment Mode",
+          previous: currentDetails.secondpaymentmode || "N/A",
           updated: secondPaymentMode,
           updatedby: userData.name,
         });
-        updates['userDetails.secondpaymentmode'] = secondPaymentMode;
       }
 
       if (currentDetails.secondpaymentdetails !== secondPaymentDetails) {
+        updates["userDetails.secondpaymentdetails"] = secondPaymentDetails;
         changes.push({
-          field: 'Second Payment Details',
-          previous: currentDetails.secondpaymentdetails || 'N/A',
+          field: "Second Payment Details",
+          previous: currentDetails.secondpaymentdetails || "N/A",
           updated: secondPaymentDetails,
           updatedby: userData.name,
         });
-        updates['userDetails.secondpaymentdetails'] = secondPaymentDetails;
       }
 
       if (currentDetails.specialnote !== specialNote) {
+        updates["userDetails.specialnote"] = specialNote;
         changes.push({
-          field: 'Special Note',
-          previous: currentDetails.specialnote || 'N/A',
+          field: "Special Note",
+          previous: currentDetails.specialnote || "N/A",
           updated: specialNote,
           updatedby: userData.name,
         });
-        updates['userDetails.specialnote'] = specialNote;
       }
 
-      const stageChanged = currentDetails.stage !== stage;
-      if (stageChanged) {
+      if (currentDetails.stage !== stage) {
+        updates["userDetails.stage"] = stage;
+
+        if (stage === "successful") {
+          updates["userDetails.stageUpdatedAt"] = serverTimestamp();
+        }
+
+        if (stage === "cancelled") {
+          updates["userDetails.stageCancelledAt"] = serverTimestamp();
+        }
+
         changes.push({
-          field: 'Stage',
-          previous: currentDetails.stage || 'N/A',
+          field: "Stage",
+          previous: currentDetails.stage || "N/A",
           updated: stage,
           updatedby: userData.name,
         });
-        updates['userDetails.stage'] = stage;
-
-        // ✅ Add timestamp when stage is "successful"
-        if (stage === "successful") {
-          updates['userDetails.stageUpdatedAt'] = serverTimestamp();
-        }
-        if (stage === "cancelled") {
-          updates['userDetails.stageCancelledAt'] = serverTimestamp();
-        }
-      }
-
-      const balanceAmount = currentDetails.balance || 0;
-      const todayDate = new Date().toISOString();
-
-      const shouldUpdateSecondPayment =
-        currentDetails.secondpaymentmode !== secondPaymentMode ||
-        currentDetails.secondpaymentdetails !== secondPaymentDetails;
-
-      if (shouldUpdateSecondPayment) {
-        if (currentDetails.secondpaymentamount !== balanceAmount) {
-          changes.push({
-            field: 'Second Payment Amount',
-            previous: currentDetails.secondpaymentamount || 0,
-            updated: balanceAmount,
-            updatedby: userData.name,
-          });
-          updates['userDetails.secondpaymentamount'] = balanceAmount;
-        }
-
-        if (currentDetails.secondpaymentdate !== todayDate) {
-          changes.push({
-            field: 'Second Payment Date',
-            previous: currentDetails.secondpaymentdate || 'N/A',
-            updated: todayDate,
-            updatedby: userData.name,
-          });
-          updates['userDetails.secondpaymentdate'] = todayDate;
-        }
       }
 
       if (changes.length === 0) {
-        alert('No changes detected.');
+        toast.info("No changes detected");
         return;
       }
 
-      const updateDetails = changes
-        .map(
-          (change) =>
-            `${change.field} updated from "${change.previous}" to "${change.updated}" by "${change.updatedby}"`
-        )
-        .join('\n\n');
-
       const newLogEntry = {
-        action: `Updated:\n${updateDetails}`,
+        action: `Updated:\n${changes
+          .map(
+            (c) =>
+              `${c.field} updated from "${c.previous}" to "${c.updated}" by "${c.updatedby}"`
+          )
+          .join("\n\n")}`,
         timestamp: new Date().toISOString(),
         updates: changes,
       };
 
-      updates.activityLog = arrayUnion(newLogEntry);
+      // 🔁 APPLY UPDATE TO ALL BOOKINGS
+      bookings.forEach((booking) => {
+        const bookingRef = doc(
+          db,
+          `products/${userData.branchCode}/products/${booking.productId}/bookings`,
+          booking.id
+        );
 
-      await updateDoc(bookingRef, updates);
+        batch.update(bookingRef, {
+          ...updates,
+          activityLog: arrayUnion(newLogEntry),
+        });
+      });
 
-      toast.success('Details Updated Successfully');
+      await batch.commit();
+
+      toast.success("Receipt updated for all products");
       setIsEditingSecondPayment(false);
     } catch (error) {
-      console.error('Error updating second payment details:', error);
-      toast.error('Error updating second payment');
+      console.error(error);
+      toast.error("Failed to update receipt");
     }
   };
+
 
 
 
@@ -531,479 +521,475 @@ const isDeleted = location.state?.isDeleted || false;
   // Handle contact number selection
 
 
-return (
-  <>
-    <div className="booking-details-container">
-       <div className="print-header">
-    <h1>{branchName || "hhhhhh"}</h1>
-     <h2>Receipt No: {receiptNumber}</h2>
-  </div>
+  return (
+    <>
+      <div className="booking-details-container">
+        <div className="print-header">
+          <h1>{branchName || "hhhhhh"}</h1>
+          <h2>Receipt No: {receiptNumber}</h2>
+        </div>
 
-      {/* ================= HEADER ================= */}
-      <div className="saas-topbar">
-        <div className="topbar-left">
-          <img
-            src={backIcon}
-            alt="Back"
-            className="back-icon"
-            onClick={() => navigate("/usersidebar/clients")}
-          />
-          <div>
-            <h2>Receipt #{receiptNumber}</h2>
-            <span className="stage-pill">{stage}</span>
+        {/* ================= HEADER ================= */}
+        <div className="saas-topbar">
+          <div className="topbar-left">
+            <img
+              src={backIcon}
+              alt="Back"
+              className="back-icon"
+              onClick={() => navigate("/usersidebar/clients")}
+            />
+            <div>
+              <h2>Receipt #{receiptNumber}</h2>
+              <span className="stage-pill">{stage}</span>
+            </div>
+          </div>
+
+          <div className="topbar-actions">
+            <button className="print-button" onClick={() => window.print()}>
+              Print
+            </button>
+            <button
+              className="whatsapp-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleContactNumberClick();
+              }}
+            >
+              <FaWhatsapp />
+              WhatsApp
+            </button>
           </div>
         </div>
+        {isModalOpen && (
+          <>
+            {/* Modal Background Overlay */}
+            <div
+              className="modal-overlay"
+              onClick={() => setIsModalOpen(false)} // Close the modal when clicking on the overlay
+            ></div>
 
-        <div className="topbar-actions">
-          <button className="print-button" onClick={() => window.print()}>
-            Print
-          </button>
-          <button
-            className="whatsapp-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleContactNumberClick();
-            }}
-          >
-            <FaWhatsapp />
-            WhatsApp
-          </button>
+            {/* Modal Popup */}
+            <div
+              className="modal-popup"
+              onClick={(e) => e.stopPropagation()} // Prevent modal from closing on click inside the modal
+            >
+              <h3>Select a Template</h3>
+              <ul className="template-list">
+                {templates.map((template) => (
+                  <li
+                    key={template.id}
+                    onClick={() => handleTemplateClick(template)}
+                    className="template-item"
+                  >
+                    {template.name}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => setIsModalOpen(false)}
+
+              >
+                Close
+              </button>
+            </div>
+          </>
+        )}
+
+
+        {/* ================= LAYOUT ================= */}
+        <div className="saas-layout">
+
+          {/* ================= ACTIVITY LOG ================= */}
+          <aside className="activity-log-container">
+            <h3>Activity Log</h3>
+
+            {activityLogs.length ? (
+              <ul>
+                {activityLogs.map((log, i) => (
+                  <li key={i} className="timeline-item">
+                    <span className="timeline-dot" />
+                    <div>
+                      <p>{log.action}</p>
+                      <small>{formatTimestamp(log.timestamp)}</small>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">No activity log available</p>
+            )}
+          </aside>
+
+
+          {/* ================= MAIN CONTENT ================= */}
+          <main className="main-content">
+
+            {/* ================= PERSONAL DETAILS ================= */}
+            <section className="card">
+              <div className="card-header">
+                <h3>Personal Details</h3>
+                {!isEditingPersonalInfo && userData?.role !== "Subuser" && (
+                  <button onClick={() => setIsEditingPersonalInfo(true)}>Edit</button>
+                )}
+              </div>
+
+              {isEditingPersonalInfo ? (
+                <>
+                  <div className="info-row">
+                    <label>Name</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} />
+                    <label>Email</label>
+                    <input value={email} onChange={(e) => setEmail(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Contact No</label>
+                    <input value={contact} onChange={(e) => setContact(e.target.value)} />
+                    <label>Alternate Contact</label>
+                    <input value={alternativeContact} onChange={(e) => setAlternativeContact(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Identity Proof</label>
+                    <input value={identityProof} onChange={(e) => setIdentityProof(e.target.value)} />
+                    <label>Identity Number</label>
+                    <input value={identityNumber} onChange={(e) => setIdentityNumber(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Source</label>
+                    <input value={source} onChange={(e) => setSource(e.target.value)} />
+                    <label>Customer By</label>
+                    <input value={customerBy} onChange={(e) => setCustomerBy(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Receipt By</label>
+                    <input value={receiptBy} onChange={(e) => setReceiptBy(e.target.value)} />
+                  </div>
+
+                  <div className="form-actions">
+                    <button onClick={handleSavePersonalInfo}>Save</button>
+                    <button onClick={() => setIsEditingPersonalInfo(false)}>Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="info-row">
+                    <p><strong>Name:</strong> {name || "N/A"}</p>
+                    <p><strong>Email:</strong> {email || "N/A"}</p>
+                  </div>
+                  <div className="info-row">
+                    <p><strong>Contact:</strong> {contact || "N/A"}</p>
+                    <p><strong>Alt Contact:</strong> {alternativeContact || "N/A"}</p>
+                  </div>
+                  <div className="info-row">
+                    <p><strong>ID Proof:</strong> {identityProof || "N/A"}</p>
+                    <p><strong>ID Number:</strong> {identityNumber || "N/A"}</p>
+                  </div>
+                  <div className="info-row">
+                    <p><strong>Source:</strong> {source || "N/A"}</p>
+                    <p><strong>Customer By:</strong> {customerBy || "N/A"}</p>
+                  </div>
+                  <div className="info-row">
+                    <p><strong>Receipt By:</strong> {receiptBy || "N/A"}</p>
+                  </div>
+                </>
+              )}
+            </section>
+
+            {/* ================= PRODUCT DETAILS ================= */}
+            {!isDeleted && (
+              <section className="card">
+                <h3>Product Details</h3>
+
+                <div className="product-table-wrapper">
+                  <table className="product-table">
+                    <thead>
+                      <tr>
+                        <th>Image</th>
+                        <th>Product</th>
+                        <th>Code</th>
+                        <th>Qty</th>
+                        <th>Rent</th>
+                        <th>Deposit</th>
+                        <th>Extra</th>
+                        <th>Pickup</th>
+                        <th>Return</th>
+                        <th>Alteration</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {bookings.length === 0 ? (
+                        <tr className="empty-row">
+                          <td colSpan="10">No products added</td>
+                        </tr>
+                      ) : (
+                        bookings.map((booking, index) => (
+                          <tr key={index}>
+                            {/* IMAGE */}
+                            <td data-label="Image">
+                              <img
+                                src={booking.product?.imageUrls}
+                                alt={booking.product?.productName}
+                                className="product-table-img"
+                                onClick={() => setPreviewImage(booking.product?.imageUrls)}
+                              />
+
+                            </td>
+
+                            {/* PRODUCT */}
+                            <td data-label="Product">
+                              {booking.product?.productName}
+                            </td>
+
+                            {/* CODE */}
+                            <td data-label="Code">
+                              {booking.product?.productCode}
+                            </td>
+
+                            {/* QTY */}
+                            <td data-label="Qty">
+                              {booking.quantity}
+                            </td>
+
+                            {/* RENT */}
+                            <td data-label="Rent">
+                              ₹{booking.price}
+                            </td>
+
+                            {/* DEPOSIT */}
+                            <td data-label="Deposit">
+                              ₹{booking.deposit}
+                            </td>
+
+                            {/* EXTRA */}
+                            <td data-label="Extra Rent">
+                              ₹{booking.extraRent || "-"}
+                            </td>
+
+                            {/* PICKUP */}
+                            <td data-label="Pickup">
+                              {formatDateDMY(booking.pickupDate)}
+                            </td>
+
+                            {/* RETURN */}
+                            <td data-label="Return">
+                              {formatDateDMY(booking.returnDate)}
+                            </td>
+
+                            {/* ALTERATION */}
+                            <td data-label="Alteration">
+                              {userDetails?.alterations || "N/A"}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+
+            {/* ================= PAYMENT DETAILS (ALL FIELDS) ================= */}
+            <section className="card">
+              <div className="card-header">
+                <h3>Payment Details</h3>
+                {!isEditingPayment && userData?.role !== "Subuser" && (
+                  <button onClick={() => setIsEditingPayment(true)}>Edit</button>
+                )}
+              </div>
+
+              {isEditingPayment ? (
+                <>
+                  <div className="info-row">
+                    <label>Grand Total Rent</label>
+                    <input value={grandTotalRent} onChange={(e) => setGrandTotalRent(e.target.value)} />
+                    <label>Grand Total Deposit</label>
+                    <input value={grandTotalDeposit} onChange={(e) => setGrandTotalDeposit(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Discount on Rent</label>
+                    <input value={discountOnRent} onChange={(e) => setDiscountOnRent(e.target.value)} />
+                    <label>Discount on Deposit</label>
+                    <input value={discountOnDeposit} onChange={(e) => setDiscountOnDeposit(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Final Rent</label>
+                    <input value={finalRent} onChange={(e) => setFinalRent(e.target.value)} />
+                    <label>Final Deposit</label>
+                    <input value={finalDeposit} onChange={(e) => setFinalDeposit(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Amount To Be Paid</label>
+                    <input value={amountToBePaid} onChange={(e) => setAmountToBePaid(e.target.value)} />
+                    <label>Amount Paid</label>
+                    <input value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Balance</label>
+                    <input value={balance} onChange={(e) => setBalance(e.target.value)} />
+                    <label>Payment Status</label>
+                    <input value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>First Payment Details</label>
+                    <input value={firstPaymentDetails} onChange={(e) => setFirstPaymentDetails(e.target.value)} />
+                    <label>First Payment Mode</label>
+                    <input value={firstPaymentMode} onChange={(e) => setFirstPaymentMode(e.target.value)} />
+                  </div>
+
+                  <div className="form-actions">
+                    <button onClick={handleSavePaymentDetails}>Save</button>
+                    <button onClick={() => setIsEditingPayment(false)}>Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="info-row">
+                    <p><strong>Grand Total Rent:</strong> ₹{userDetails.grandTotalRent || "N/A"}</p>
+                    <p><strong>Grand Total Deposit:</strong> ₹{userDetails.grandTotalDeposit || "N/A"}</p>
+                  </div>
+
+                  <div className="info-row">
+                    <p><strong>Discount on Rent:</strong> ₹{userDetails.discountOnRent || "N/A"}</p>
+                    <p><strong>Discount on Deposit:</strong> ₹{userDetails.discountOnDeposit || "N/A"}</p>
+                  </div>
+
+                  <div className="info-row">
+                    <p><strong>Final Rent:</strong> ₹{userDetails.finalrent || "N/A"}</p>
+                    <p><strong>Final Deposit:</strong> ₹{userDetails.finaldeposite || "N/A"}</p>
+                  </div>
+
+                  <div className="info-row">
+                    <p><strong>Amount To Be Paid:</strong> ₹{userDetails.totalamounttobepaid || "N/A"}</p>
+                    <p><strong>Total Credits:</strong> ₹{userDetails.totalcredit || "N/A"}</p>
+                  </div>
+
+                  <div className="info-row">
+                    <p><strong>Amount Paid:</strong> ₹{userDetails.amountpaid || "N/A"}</p>
+                    <p><strong>Credit Used:</strong> ₹{userDetails.creditNoteAmountAppliedToRent || "N/A"}</p>
+                  </div>
+
+                  <div className="info-row">
+                    <p><strong>Balance:</strong> ₹{userDetails.balance || "N/A"}</p>
+                    <p><strong>Credit Balance:</strong> ₹{userDetails.Balance || "N/A"}</p>
+                  </div>
+
+                  <div className="info-row">
+                    <p><strong>Payment Status:</strong> {userDetails.paymentstatus || "N/A"}</p>
+                    <p><strong>First Payment Details:</strong> ₹{userDetails.firstpaymentdtails || "N/A"}</p>
+                  </div>
+
+                  <div className="info-row">
+                    <p><strong>First Payment Mode:</strong> {userDetails.firstpaymentmode || "N/A"}</p>
+                  </div>
+                </>
+              )}
+            </section>
+
+            {/* ================= CLIENT TYPE ================= */}
+            <section className="card">
+              <h3>Client Type</h3>
+
+              {isEditingSecondPayment ? (
+                <>
+                  <div className="info-row">
+                    <label>Second Payment Mode</label>
+                    <select
+                      value={secondPaymentMode}
+                      onChange={(e) => setSecondPaymentMode(e.target.value)}
+                    >
+                      <option value="">Select payment mode</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                    </select>
+                  </div>
+
+                  <div className="info-row">
+                    <label>Second Payment Details</label>
+                    <input value={secondPaymentDetails} onChange={(e) => setSecondPaymentDetails(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Special Note</label>
+                    <input value={specialNote} onChange={(e) => setSpecialNote(e.target.value)} />
+                  </div>
+
+                  <div className="info-row">
+                    <label>Stage</label>
+                    <select value={stage} onChange={(e) => setStage(e.target.value)}>
+                      <option value="Booking">Booking</option>
+                      <option value="pickupPending">Pickup Pending</option>
+                      <option value="pickup">Picked Up</option>
+                      <option value="returnPending">Return Pending</option>
+                      <option value="return">Returned</option>
+                      <option value="successful">Successful</option>
+                      <option value="cancelled">Cancelled</option>
+                      <option value="postponed">Postponed</option>
+                    </select>
+                  </div>
+
+                  <div className="form-actions">
+                    <button onClick={handleSaveSecondPayment}>Save</button>
+                    <button onClick={() => setIsEditingSecondPayment(false)}>Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="info-row">
+                    <p><strong>Second Payment Mode:</strong> {secondPaymentMode || "N/A"}</p>
+                  </div>
+                  <div className="info-row">
+                    <p><strong>Second Payment Details:</strong> {secondPaymentDetails || "N/A"}</p>
+                  </div>
+                  <div className="info-row">
+                    <p><strong>Special Note:</strong> {specialNote || "N/A"}</p>
+                  </div>
+                  <div className="info-row">
+                    <p><strong>Stage:</strong> {stage || "N/A"}</p>
+                  </div>
+
+                  <button onClick={() => setIsEditingSecondPayment(true)}>Update</button>
+                </>
+              )}
+            </section>
+
+          </main>
         </div>
       </div>
-         {isModalOpen && (
-            <>
-              {/* Modal Background Overlay */}
-              <div
-                className="modal-overlay"
-                onClick={() => setIsModalOpen(false)} // Close the modal when clicking on the overlay
-              ></div>
-
-              {/* Modal Popup */}
-              <div
-                className="modal-popup"
-                onClick={(e) => e.stopPropagation()} // Prevent modal from closing on click inside the modal
-              >
-                <h3>Select a Template</h3>
-                <ul className="template-list">
-                  {templates.map((template) => (
-                    <li
-                      key={template.id}
-                      onClick={() => handleTemplateClick(template)}
-                      className="template-item"
-                    >
-                      {template.name}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-
-                >
-                  Close
-                </button>
-              </div>
-            </>
-          )}
+      {previewImage && (
+        <div
+          className="image-preview-overlay"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="image-preview-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img src={previewImage} alt="Preview" />
+            <button
+              className="image-preview-close"
+              onClick={() => setPreviewImage(null)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
 
-      {/* ================= LAYOUT ================= */}
-      <div className="saas-layout">
-
-        {/* ================= ACTIVITY LOG ================= */}
-        <aside className="activity-log-container">
-          <h3>Activity Log</h3>
-
-          {bookings.map((booking, index) => (
-            <div key={index}>
-              {booking.activityLog?.length ? (
-                <ul>
-                  {booking.activityLog.map((log, i) => (
-                    <li key={i} className="timeline-item">
-                      <span className="timeline-dot" />
-                      <div>
-                        <p>{log.action}</p>
-                        <small>{formatTimestamp(log.timestamp)}</small>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="muted">No activity log available</p>
-              )}
-            </div>
-          ))}
-        </aside>
-
-        {/* ================= MAIN CONTENT ================= */}
-        <main className="main-content">
-
-          {/* ================= PERSONAL DETAILS ================= */}
-          <section className="card">
-            <div className="card-header">
-              <h3>Personal Details</h3>
-              {!isEditingPersonalInfo && userData?.role !== "Subuser" && (
-                <button onClick={() => setIsEditingPersonalInfo(true)}>Edit</button>
-              )}
-            </div>
-
-            {isEditingPersonalInfo ? (
-              <>
-                <div className="info-row">
-                  <label>Name</label>
-                  <input value={name} onChange={(e) => setName(e.target.value)} />
-                  <label>Email</label>
-                  <input value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Contact No</label>
-                  <input value={contact} onChange={(e) => setContact(e.target.value)} />
-                  <label>Alternate Contact</label>
-                  <input value={alternativeContact} onChange={(e) => setAlternativeContact(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Identity Proof</label>
-                  <input value={identityProof} onChange={(e) => setIdentityProof(e.target.value)} />
-                  <label>Identity Number</label>
-                  <input value={identityNumber} onChange={(e) => setIdentityNumber(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Source</label>
-                  <input value={source} onChange={(e) => setSource(e.target.value)} />
-                  <label>Customer By</label>
-                  <input value={customerBy} onChange={(e) => setCustomerBy(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Receipt By</label>
-                  <input value={receiptBy} onChange={(e) => setReceiptBy(e.target.value)} />
-                </div>
-
-                <div className="form-actions">
-                  <button onClick={handleSavePersonalInfo}>Save</button>
-                  <button onClick={() => setIsEditingPersonalInfo(false)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="info-row">
-                  <p><strong>Name:</strong> {name || "N/A"}</p>
-                  <p><strong>Email:</strong> {email || "N/A"}</p>
-                </div>
-                <div className="info-row">
-                  <p><strong>Contact:</strong> {contact || "N/A"}</p>
-                  <p><strong>Alt Contact:</strong> {alternativeContact || "N/A"}</p>
-                </div>
-                <div className="info-row">
-                  <p><strong>ID Proof:</strong> {identityProof || "N/A"}</p>
-                  <p><strong>ID Number:</strong> {identityNumber || "N/A"}</p>
-                </div>
-                <div className="info-row">
-                  <p><strong>Source:</strong> {source || "N/A"}</p>
-                  <p><strong>Customer By:</strong> {customerBy || "N/A"}</p>
-                </div>
-                <div className="info-row">
-                  <p><strong>Receipt By:</strong> {receiptBy || "N/A"}</p>
-                </div>
-              </>
-            )}
-          </section>
-
-          {/* ================= PRODUCT DETAILS ================= */}
-         {!isDeleted && (
-  <section className="card">
-    <h3>Product Details</h3>
-
-    <div className="product-table-wrapper">
-      <table className="product-table">
-        <thead>
-          <tr>
-            <th>Image</th>
-            <th>Product</th>
-            <th>Code</th>
-            <th>Qty</th>
-            <th>Rent</th>
-            <th>Deposit</th>
-            <th>Extra</th>
-            <th>Pickup</th>
-            <th>Return</th>
-            <th>Alteration</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {bookings.length === 0 ? (
-            <tr className="empty-row">
-              <td colSpan="10">No products added</td>
-            </tr>
-          ) : (
-            bookings.map((booking, index) => (
-              <tr key={index}>
-                {/* IMAGE */}
-                <td data-label="Image">
-                 <img
-  src={booking.product?.imageUrls}
-  alt={booking.product?.productName}
-  className="product-table-img"
-  onClick={() => setPreviewImage(booking.product?.imageUrls)}
-/>
-
-                </td>
-
-                {/* PRODUCT */}
-                <td data-label="Product">
-                  {booking.product?.productName}
-                </td>
-
-                {/* CODE */}
-                <td data-label="Code">
-                  {booking.product?.productCode}
-                </td>
-
-                {/* QTY */}
-                <td data-label="Qty">
-                  {booking.quantity}
-                </td>
-
-                {/* RENT */}
-                <td data-label="Rent">
-                  ₹{booking.price}
-                </td>
-
-                {/* DEPOSIT */}
-                <td data-label="Deposit">
-                  ₹{booking.deposit}
-                </td>
-
-                {/* EXTRA */}
-                <td data-label="Extra Rent">
-                  ₹{booking.extraRent || "-"}
-                </td>
-
-                {/* PICKUP */}
-                <td data-label="Pickup">
-                  {formatDateDMY(booking.pickupDate)}
-                </td>
-
-                {/* RETURN */}
-                <td data-label="Return">
-                  {formatDateDMY(booking.returnDate)}
-                </td>
-
-                {/* ALTERATION */}
-                <td data-label="Alteration">
-                  {userDetails?.alterations || "N/A"}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  </section>
-)}
-
-
-          {/* ================= PAYMENT DETAILS (ALL FIELDS) ================= */}
-          <section className="card">
-            <div className="card-header">
-              <h3>Payment Details</h3>
-              {!isEditingPayment && userData?.role !== "Subuser" && (
-                <button onClick={() => setIsEditingPayment(true)}>Edit</button>
-              )}
-            </div>
-
-            {isEditingPayment ? (
-              <>
-                <div className="info-row">
-                  <label>Grand Total Rent</label>
-                  <input value={grandTotalRent} onChange={(e) => setGrandTotalRent(e.target.value)} />
-                  <label>Grand Total Deposit</label>
-                  <input value={grandTotalDeposit} onChange={(e) => setGrandTotalDeposit(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Discount on Rent</label>
-                  <input value={discountOnRent} onChange={(e) => setDiscountOnRent(e.target.value)} />
-                  <label>Discount on Deposit</label>
-                  <input value={discountOnDeposit} onChange={(e) => setDiscountOnDeposit(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Final Rent</label>
-                  <input value={finalRent} onChange={(e) => setFinalRent(e.target.value)} />
-                  <label>Final Deposit</label>
-                  <input value={finalDeposit} onChange={(e) => setFinalDeposit(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Amount To Be Paid</label>
-                  <input value={amountToBePaid} onChange={(e) => setAmountToBePaid(e.target.value)} />
-                  <label>Amount Paid</label>
-                  <input value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Balance</label>
-                  <input value={balance} onChange={(e) => setBalance(e.target.value)} />
-                  <label>Payment Status</label>
-                  <input value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>First Payment Details</label>
-                  <input value={firstPaymentDetails} onChange={(e) => setFirstPaymentDetails(e.target.value)} />
-                  <label>First Payment Mode</label>
-                  <input value={firstPaymentMode} onChange={(e) => setFirstPaymentMode(e.target.value)} />
-                </div>
-
-                <div className="form-actions">
-                  <button onClick={handleSavePaymentDetails}>Save</button>
-                  <button onClick={() => setIsEditingPayment(false)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="info-row">
-                  <p><strong>Grand Total Rent:</strong> ₹{userDetails.grandTotalRent || "N/A"}</p>
-                  <p><strong>Grand Total Deposit:</strong> ₹{userDetails.grandTotalDeposit || "N/A"}</p>
-                </div>
-
-                <div className="info-row">
-                  <p><strong>Discount on Rent:</strong> ₹{userDetails.discountOnRent || "N/A"}</p>
-                  <p><strong>Discount on Deposit:</strong> ₹{userDetails.discountOnDeposit || "N/A"}</p>
-                </div>
-
-                <div className="info-row">
-                  <p><strong>Final Rent:</strong> ₹{userDetails.finalrent || "N/A"}</p>
-                  <p><strong>Final Deposit:</strong> ₹{userDetails.finaldeposite || "N/A"}</p>
-                </div>
-
-                <div className="info-row">
-                  <p><strong>Amount To Be Paid:</strong> ₹{userDetails.totalamounttobepaid || "N/A"}</p>
-                  <p><strong>Total Credits:</strong> ₹{userDetails.totalcredit || "N/A"}</p>
-                </div>
-
-                <div className="info-row">
-                  <p><strong>Amount Paid:</strong> ₹{userDetails.amountpaid || "N/A"}</p>
-                  <p><strong>Credit Used:</strong> ₹{userDetails.creditNoteAmountAppliedToRent || "N/A"}</p>
-                </div>
-
-                <div className="info-row">
-                  <p><strong>Balance:</strong> ₹{userDetails.balance || "N/A"}</p>
-                  <p><strong>Credit Balance:</strong> ₹{userDetails.Balance || "N/A"}</p>
-                </div>
-
-                <div className="info-row">
-                  <p><strong>Payment Status:</strong> {userDetails.paymentstatus || "N/A"}</p>
-                  <p><strong>First Payment Details:</strong> ₹{userDetails.firstpaymentdtails || "N/A"}</p>
-                </div>
-
-                <div className="info-row">
-                  <p><strong>First Payment Mode:</strong> {userDetails.firstpaymentmode || "N/A"}</p>
-                </div>
-              </>
-            )}
-          </section>
-
-          {/* ================= CLIENT TYPE ================= */}
-          <section className="card">
-            <h3>Client Type</h3>
-
-            {isEditingSecondPayment ? (
-              <>
-                <div className="info-row">
-  <label>Second Payment Mode</label>
-  <select
-    value={secondPaymentMode}
-    onChange={(e) => setSecondPaymentMode(e.target.value)}
-  >
-    <option value="">Select payment mode</option>
-    <option value="UPI">UPI</option>
-    <option value="Cash">Cash</option>
-    <option value="Card">Card</option>
-  </select>
-</div>
-
-
-                <div className="info-row">
-                  <label>Second Payment Details</label>
-                  <input value={secondPaymentDetails} onChange={(e) => setSecondPaymentDetails(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Special Note</label>
-                  <input value={specialNote} onChange={(e) => setSpecialNote(e.target.value)} />
-                </div>
-
-                <div className="info-row">
-                  <label>Stage</label>
-                  <select value={stage} onChange={(e) => setStage(e.target.value)}>
-                    <option value="Booking">Booking</option>
-                    <option value="pickupPending">Pickup Pending</option>
-                    <option value="pickup">Picked Up</option>
-                    <option value="returnPending">Return Pending</option>
-                    <option value="return">Returned</option>
-                    <option value="successful">Successful</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="postponed">Postponed</option>
-                  </select>
-                </div>
-
-                <div className="form-actions">
-                  <button onClick={handleSaveSecondPayment}>Save</button>
-                  <button onClick={() => setIsEditingSecondPayment(false)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="info-row">
-                  <p><strong>Second Payment Mode:</strong> {secondPaymentMode || "N/A"}</p>
-                </div>
-                <div className="info-row">
-                  <p><strong>Second Payment Details:</strong> {secondPaymentDetails || "N/A"}</p>
-                </div>
-                <div className="info-row">
-                  <p><strong>Special Note:</strong> {specialNote || "N/A"}</p>
-                </div>
-                <div className="info-row">
-                  <p><strong>Stage:</strong> {stage || "N/A"}</p>
-                </div>
-
-                <button onClick={() => setIsEditingSecondPayment(true)}>Update</button>
-              </>
-            )}
-          </section>
-
-        </main>
-      </div>
-    </div>
-    {previewImage && (
-  <div
-    className="image-preview-overlay"
-    onClick={() => setPreviewImage(null)}
-  >
-    <div
-      className="image-preview-modal"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <img src={previewImage} alt="Preview" />
-      <button
-        className="image-preview-close"
-        onClick={() => setPreviewImage(null)}
-      >
-        ✕
-      </button>
-    </div>
-  </div>
-)}
-
-
-    <ToastContainer />
-  </>
-);
+      <ToastContainer />
+    </>
+  );
 
 
 

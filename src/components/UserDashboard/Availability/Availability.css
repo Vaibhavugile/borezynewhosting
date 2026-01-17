@@ -724,3 +724,6 @@ button {
   gap: 6px; /* 👈 this creates the space */
 }
 
+.booking-card::after {
+  pointer-events: none;
+}

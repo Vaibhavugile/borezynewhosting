@@ -1135,7 +1135,7 @@ function Booking() {
                             onChange={(e) =>
                               handleFirstProductDateChange(e, "pickupDate", index)
                             }
-                            // min={new Date().toISOString().slice(0, 16)}
+                             min={new Date().toISOString().slice(0, 16)}
                             disabled={index > 0}
                             required
                           />
@@ -1150,7 +1150,7 @@ function Booking() {
                             onChange={(e) =>
                               handleFirstProductDateChange(e, "returnDate", index)
                             }
-                            // min={new Date().toISOString().slice(0, 16)}
+                             min={new Date().toISOString().slice(0, 16)}
                             disabled={index > 0}
                             required
                           />

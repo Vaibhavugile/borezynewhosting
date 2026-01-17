@@ -213,12 +213,14 @@ const CreditNoteDashboard = () => {
           </div>
 
           <div className="creditnote-actions">
+             {userData?.role !== "Subuser" && (
             <button
               className="creditnote-btn primary"
               onClick={() => navigate('/add-credit-note')}
             >
               <FaPlus /> Add
             </button>
+             )}
 
             <button
               className="creditnote-btn secondary"

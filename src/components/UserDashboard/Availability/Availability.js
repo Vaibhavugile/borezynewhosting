@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, orderBy, updateDoc, doc, getDoc, setDoc, writeBatch, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection,collectionGroup, getDocs, query, where, orderBy, updateDoc, doc, getDoc, setDoc, writeBatch, deleteDoc, addDoc } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import { useNavigate } from 'react-router-dom';
 import UserHeader from '../../UserDashboard/UserHeader';
@@ -392,68 +392,80 @@ const BookingDashboard = () => {
 
 
 
-  const handleDelete = async (receiptNumber) => {
-    const confirmed = window.confirm("Are you sure you want to delete this booking?");
-    if (!confirmed) return;
-    try {
-      const branchCode = userData.branchCode;
-      const productsRef = collection(db, `products/${branchCode}/products`);
-      const productsSnapshot = await getDocs(productsRef);
+ const handleDelete = async (receiptNumber) => {
+  const confirmed = window.confirm(
+    `Are you sure you want to delete ALL bookings for receipt ${receiptNumber}?`
+  );
+  if (!confirmed) return;
 
-      let deletionSuccessful = false;
-      const batch = writeBatch(db);
-      let deletedBookingData = null;
-      const productCodes = new Set(); // Use a Set to store unique product codes
+  try {
+    console.log("⚡ FAST DELETE START");
+    console.log("Receipt:", receiptNumber);
 
-      for (const productDoc of productsSnapshot.docs) {
-        const currentProductCode = productDoc.data().productCode;
-        const bookingsRef = collection(productDoc.ref, 'bookings');
-        const q = query(bookingsRef, where('receiptNumber', '==', receiptNumber));
-        const querySnapshot = await getDocs(q);
+    // 🔥 ONE QUERY (no branchCode filter)
+    const bookingsQuery = query(
+      collectionGroup(db, "bookings"),
+      where("receiptNumber", "==", receiptNumber)
+    );
 
-        if (!querySnapshot.empty) {
-          const bookingDoc = querySnapshot.docs[0];
-          const bookingData = bookingDoc.data();
+    const snapshot = await getDocs(bookingsQuery);
 
-          // Store the data for the deletedBookings collection (if not already stored)
-          if (!deletedBookingData) {
-            deletedBookingData = { ...bookingData };
-          }
-          productCodes.add(currentProductCode); // Add the product code to the Set
-
-          // Add delete operation to the batch
-          batch.delete(bookingDoc.ref);
-          deletionSuccessful = true;
-          console.log(`Scheduled deletion of booking ${bookingDoc.id} under product ${currentProductCode}`);
-          // If you assume receiptNumber is unique across all product bookings, you can break here
-          // break;
-        }
-      }
-
-      if (deletionSuccessful) {
-        await batch.commit();
-
-        // Save deleted booking to products/{branchCode}/deletedBookings
-        const deletedRef = collection(db, `products/${branchCode}/deletedBookings`);
-        await addDoc(deletedRef, {
-          ...deletedBookingData,
-          productCodes: Array.from(productCodes), // Convert Set to Array before saving
-          deletedAt: new Date(),
-          deletedBy: userData?.email || "unknown",
-        });
-
-        toast.success('Booking deleted successfully');
-        window.location.reload();
-      } else {
-
-        toast.error('No booking found with the specified receipt number.');
-      }
-
-    } catch (error) {
-      console.error("Error deleting booking:", error);
-      toast.error('Error deleting booking');
+    if (snapshot.empty) {
+      console.warn("❌ No bookings found");
+      toast.error("No booking found with the specified receipt number.");
+      return;
     }
-  };
+
+    const batch = writeBatch(db);
+    const productCodes = new Set();
+    let deletedBookingData = null;
+
+    snapshot.docs.forEach((docSnap) => {
+      console.log("🗑 Deleting:", docSnap.ref.path);
+
+      if (!deletedBookingData) {
+        deletedBookingData = docSnap.data();
+      }
+
+      // Extract productCode from path
+      // products/{branchCode}/products/{productCode}/bookings/{docId}
+      const pathParts = docSnap.ref.path.split("/");
+      const productCode = pathParts[pathParts.indexOf("products") + 1];
+      const branchCodeFromPath = pathParts[1]; // 👈 branch from path
+
+      productCodes.add(productCode);
+
+      batch.delete(docSnap.ref);
+    });
+
+    await batch.commit();
+
+    console.log("✅ DELETE COMPLETE");
+    console.log("Products affected:", Array.from(productCodes));
+
+    // Audit backup
+    await addDoc(
+      collection(db, `products/${userData.branchCode}/deletedBookings`),
+      {
+        ...deletedBookingData,
+        receiptNumber,
+        productCodes: Array.from(productCodes),
+        deletedAt: serverTimestamp(),
+        deletedBy: userData?.email || "unknown",
+      }
+    );
+
+    toast.success("Booking deleted successfully");
+
+    setBookings((prev) =>
+      prev.filter((b) => b.receiptNumber !== receiptNumber)
+    );
+
+  } catch (error) {
+    console.error("🔥 DELETE ERROR:", error);
+    toast.error("Error deleting booking");
+  }
+};
 
 
 
@@ -1085,11 +1097,15 @@ const BookingDashboard = () => {
                 const flat = flattenBooking(booking);
 
                 return (
-                  <div
-                    key={booking.receiptNumber}
-                    className="booking-card"
-                    onClick={() => handleBookingClick(booking)}
-                  >
+                <div
+  className="booking-card"
+  onClick={(e) => {
+    // Ignore clicks coming from action buttons
+    if (e.target.closest('.row-actions')) return;
+    handleBookingClick(booking);
+  }}
+>
+
                     {/* LEFT */}
                     <div className="booking-main">
                       {visibleFields.receiptNumber && (
